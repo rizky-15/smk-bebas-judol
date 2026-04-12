@@ -3,286 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulasi Nasib Penjudi - ANTI RUNGKAD</title>
+    <title>Simulasi Sistem Manipulatif - ANTI RUNGKAD</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { background-color: #000; background-image: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0.95)), url("https://www.transparenttextures.com/patterns/dark-matter.png"); color: #e5e5e5; }
-        .reel-window { height: 120px; overflow: hidden; position: relative; background: linear-gradient(180deg, #18181b 0%, #27272a 50%, #18181b 100%); box-shadow: inset 0 0 20px rgba(0,0,0,0.8); }
-        .reel-strip { display: flex; flex-direction: column; transition: transform 3s cubic-bezier(0.15, 0.9, 0.25, 1); will-change: transform; }
-        .reel-strip.spinning { filter: blur(2px); transition: transform 0.2s linear; }
-        .symbol { height: 120px; display: flex; align-items: center; justify-content: center; font-size: 4rem; text-shadow: 0 0 10px rgba(255,255,255,0.2); }
-        .win-line { position: absolute; top: 50%; left: 0; width: 100%; height: 4px; background-color: rgba(239, 68, 68, 0.5); transform: translateY(-50%); z-index: 10; pointer-events: none; }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-        .shake-animation { animation: shake 0.4s ease-in-out; }
+        @import url('https://fonts.googleapis.com/css2?family=Goldman:wght@400;700&display=swap');
         
-        /* Animasi EXP Melayang */
-        @keyframes floatUp {
-            0% { transform: translate(-50%, 0); opacity: 1; }
-            100% { transform: translate(-50%, -100px); opacity: 0; }
+        body { 
+            background-color: #09090b; 
+            color: #e5e5e5; 
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
         }
-        .exp-float { animation: floatUp 2s ease-out forwards; }
+
+        .font-goldman { font-family: 'Goldman', cursive; }
+
+        /* Reel Styling */
+        .reel-window { 
+            height: 150px; 
+            overflow: hidden; 
+            position: relative; 
+            background: #111;
+            border: 2px solid #333;
+            border-radius: 12px;
+        }
+        
+        .reel-strip { 
+            display: flex; 
+            flex-direction: column; 
+            transition: transform 3s cubic-bezier(0.45, 0.05, 0.55, 0.95);
+        }
+
+        .symbol { 
+            height: 150px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            font-size: 3rem;
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
+        }
+
+        /* Overlay Depo */
+        #depo-modal {
+            backdrop-filter: blur(8px);
+            display: none;
+        }
+
+        .neon-text {
+            text-shadow: 0 0 10px rgba(220, 38, 38, 0.8);
+        }
+
+        .jackpot-anim {
+            animation: jackpot 0.5s infinite alternate;
+        }
+
+        @keyframes jackpot {
+            from { transform: scale(1); filter: brightness(1); }
+            to { transform: scale(1.1); filter: brightness(1.5); }
+        }
+
+        /* Log styling */
+        .log-entry {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
     </style>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-        // Pastikan Anda menambahkan 'arrayUnion' di baris import ini:
-        import { getFirestore, doc, getDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCIzxy9dKBWechcr_f4rfjrakzb5NBe_gA",
-            authDomain: "login-website-judol.firebaseapp.com",
-            projectId: "login-website-judol",
-            storageBucket: "login-website-judol.firebasestorage.app",
-            messagingSenderId: "1094661331467",
-            appId: "1:1094661331467:web:d82b020ada91fd9f20050e"
-        };
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        let currentUserUid = null;
-
-        // Cek Auth dan Ambil UID
-        onAuthStateChanged(auth, (user) => { 
-            if (!user) window.location.href = "index.html"; 
-            else currentUserUid = user.uid;
-        });
-
-        // --- SISTEM PEMBERIAN EXP KE DATABASE ---
-        window.rewardExp = async function(points, reason) {
-            if(!currentUserUid) return;
-            try {
-                const userRef = doc(db, "users", currentUserUid);
-                const snap = await getDoc(userRef);
-                if(snap.exists()) {
-                    const data = snap.data();
-                    let exp = data.exp || 0;
-                    exp += points;
-                    
-                    // Kalkulasi Level Baru
-                    let level = 1;
-                    if (exp >= 1000) level = 5;
-                    else if (exp >= 500) level = 4;
-                    else if (exp >= 250) level = 3;
-                    else if (exp >= 100) level = 2;
-
-                    // Update ke Firebase beserta riwayat log
-                    await updateDoc(userRef, { 
-                        exp: exp, 
-                        level: level,
-                        activityLogs: arrayUnion({
-                            activity: reason,
-                            expGained: points,
-                            timestamp: new Date().toISOString()
-                        })
-                    });
-                    
-                    // Tampilkan Notifikasi Melayang
-                    showExpAnimation(points, reason);
-                }
-            } catch(e) { console.error("EXP Error", e); }
-        }
-
-        function showExpAnimation(points, reason) {
-            const toast = document.getElementById('exp-toast');
-            document.getElementById('exp-points').innerText = `+${points} EXP`;
-            document.getElementById('exp-reason').innerText = reason;
-            
-            toast.classList.remove('hidden');
-            toast.classList.remove('exp-float');
-            // Trigger reflow
-            void toast.offsetWidth;
-            toast.classList.add('exp-float');
-
-            setTimeout(() => { toast.classList.add('hidden'); }, 2000);
-        }
-
-        // --- LOGIKA GAME SIMULASI ---
-        let saldo = 1000000;
-        const hargaSpin = 50000;
-        let isSpinning = false;
-        let putaranKe = 0;
-        const symbols = ['🍎', '🍋', '🍒', '💎', '🔔', '🍉'];
-        const REEL_LENGTH = 50;
-        const SYMBOL_HEIGHT = 120;
-
-        function initReels() {
-            for (let i = 1; i <= 3; i++) {
-                const strip = document.getElementById(`reel-${i}`);
-                strip.innerHTML = '';
-                for(let j=0; j<5; j++) {
-                    const sym = document.createElement('div');
-                    sym.className = 'symbol';
-                    sym.innerText = symbols[Math.floor(Math.random() * symbols.length)];
-                    strip.appendChild(sym);
-                }
-                strip.style.transform = `translateY(0px)`;
-            }
-            updateSaldoDisplay();
-        }
-
-        function formatRupiah(angka) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka); }
-
-        function updateSaldoDisplay() {
-            const saldoEl = document.getElementById('saldo-display');
-            saldoEl.innerText = formatRupiah(saldo);
-            if (saldo < hargaSpin) {
-                saldoEl.classList.add('text-red-500'); saldoEl.classList.remove('text-green-400');
-                document.getElementById('spin-btn').disabled = true;
-                document.getElementById('spin-btn').classList.add('opacity-50', 'cursor-not-allowed');
-                tambahLog("SALDO HABIS! Inilah kenyataan algoritma penipuan ini.", 'error');
-                
-                // Berikan EXP besar jika saldo habis (Pelajaran Pahit)
-                setTimeout(() => { window.rewardExp(20, "Pelajaran Pahit Rungkad"); }, 1000);
-            } else {
-                saldoEl.classList.add('text-green-400'); saldoEl.classList.remove('text-red-500');
-            }
-        }
-
-        function tambahLog(pesan, tipe = 'info') {
-            const logBox = document.getElementById('log-box');
-            const entry = document.createElement('div');
-            entry.className = `p-3 rounded-lg border text-sm mb-2 animate-[fadeIn_0.3s_ease-out] ${
-                tipe === 'error' ? 'bg-red-950/50 border-red-800 text-red-300' :
-                tipe === 'warning' ? 'bg-yellow-950/50 border-yellow-800 text-yellow-300' :
-                'bg-zinc-800 border-zinc-700 text-zinc-300'
-            }`;
-            const waktu = new Date().toLocaleTimeString('id-ID');
-            entry.innerHTML = `<span class="opacity-50 text-xs mr-2">[${waktu}]</span> ${pesan}`;
-            logBox.prepend(entry);
-        }
-
-        window.mulaiSpin = function() {
-            if (isSpinning || saldo < hargaSpin) {
-                document.getElementById('mesin-container').classList.add('shake-animation');
-                setTimeout(() => document.getElementById('mesin-container').classList.remove('shake-animation'), 400);
-                return;
-            }
-            isSpinning = true; saldo -= hargaSpin; putaranKe++; updateSaldoDisplay();
-            
-            document.getElementById('spin-btn').innerHTML = `<i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i> Berputar...`;
-            lucide.createIcons();
-            tambahLog(`Taruhan ${formatRupiah(hargaSpin)} dipasang. Sisa saldo: ${formatRupiah(saldo)}`);
-
-            let finalSymbols = [];
-            if (putaranKe === 3) {
-                const winSymbol = symbols[2];
-                finalSymbols = [winSymbol, winSymbol, winSymbol];
-                setTimeout(() => {
-                    saldo += 150000; updateSaldoDisplay();
-                    tambahLog(`PANCINGAN: Anda "menang" Rp 150.000. Ini taktik sistem agar Anda merasa hoki.`, 'warning');
-                }, 3500);
-            } else {
-                const randomSym = symbols[Math.floor(Math.random() * symbols.length)];
-                let otherSym = symbols[Math.floor(Math.random() * symbols.length)];
-                while(otherSym === randomSym) otherSym = symbols[Math.floor(Math.random() * symbols.length)];
-                if (Math.random() > 0.5) finalSymbols = [randomSym, randomSym, otherSym]; 
-                else finalSymbols = [randomSym, otherSym, randomSym];
-            }
-
-            for (let i = 1; i <= 3; i++) {
-                const strip = document.getElementById(`reel-${i}`);
-                strip.innerHTML = '';
-                for(let j=0; j < REEL_LENGTH - 1; j++) {
-                    const sym = document.createElement('div');
-                    sym.className = 'symbol'; sym.innerText = symbols[Math.floor(Math.random() * symbols.length)];
-                    strip.appendChild(sym);
-                }
-                const targetSym = document.createElement('div');
-                targetSym.className = 'symbol'; targetSym.innerText = finalSymbols[i-1];
-                strip.appendChild(targetSym);
-
-                strip.style.transition = 'none'; strip.style.transform = `translateY(0px)`;
-                strip.classList.add('spinning');
-                setTimeout(() => {
-                    strip.style.transition = `transform ${2 + i * 0.5}s cubic-bezier(0.1, 0.7, 0.1, 1)`;
-                    strip.classList.remove('spinning');
-                    const targetY = -((REEL_LENGTH - 1) * SYMBOL_HEIGHT); 
-                    strip.style.transform = `translateY(${targetY}px)`;
-                }, 50);
-            }
-
-            setTimeout(() => {
-                isSpinning = false;
-                document.getElementById('spin-btn').innerHTML = `<i data-lucide="play" class="w-6 h-6"></i> PUTAR SEKARANG`;
-                lucide.createIcons();
-                if (putaranKe !== 3) tambahLog(`ZONK! Uang Anda hangus. Taktik Near Miss bekerja!`, 'error');
-                
-                // Beri EXP HANYA setiap kelipatan 10 spin untuk menghindari spammer klik
-                if (putaranKe % 10 === 0) {
-                    window.rewardExp(20, "Konsistensi Analisis Mesin (10x Spin)");
-                }
-            }, 3600);
-        };
-
-        window.resetSimulasi = function() {
-            saldo = 1000000; putaranKe = 0; document.getElementById('log-box').innerHTML = '';
-            document.getElementById('spin-btn').disabled = false; document.getElementById('spin-btn').classList.remove('opacity-50', 'cursor-not-allowed');
-            initReels(); tambahLog("Sistem direset. Anda diberi saldo simulasi Rp 1.000.000.");
-        }
-
-        window.addEventListener('DOMContentLoaded', () => { initReels(); lucide.createIcons(); });
-    </script>
 </head>
-<body class="font-sans min-h-screen flex flex-col relative overflow-hidden">
+<body class="p-2 md:p-6">
 
-    <!-- Floating EXP Toast (Sembunyi by default) -->
-    <div id="exp-toast" class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[200] hidden flex-col items-center">
-        <span id="exp-points" class="text-5xl font-black text-blue-500 drop-shadow-[0_0_20px_rgba(59,130,246,1)] tracking-tighter italic">+10 EXP</span>
-        <span id="exp-reason" class="bg-blue-900/80 text-blue-200 font-bold text-[10px] uppercase px-4 py-1.5 rounded-full mt-2 border border-blue-500/50 shadow-lg">Alasan</span>
+    <!-- Header & Saldo -->
+    <header class="max-w-6xl mx-auto mb-6 flex flex-col md:flex-row justify-between items-center gap-4 bg-zinc-900/50 p-4 rounded-3xl border border-white/5">
+        <div class="flex items-center gap-4">
+            <button onclick="window.history.back()" class="p-2 hover:bg-white/10 rounded-full transition">
+                <i data-lucide="arrow-left" class="w-6 h-6"></i>
+            </button>
+            <div>
+                <h1 class="text-xl font-black text-red-500 italic">SIMULATOR RUNGKAD v2.0</h1>
+                <p class="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">Waspada Algoritma Settingan</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div class="bg-black px-6 py-2 rounded-2xl border border-red-900/50 flex flex-col items-center">
+                <span class="text-[9px] text-zinc-500 font-bold uppercase">Saldo Anda</span>
+                <span id="saldo-display" class="text-xl font-goldman text-yellow-500">Rp 0</span>
+            </div>
+            <button onclick="openDepo()" class="bg-green-600 hover:bg-green-500 text-white font-black px-6 py-3 rounded-2xl transition shadow-[0_0_15px_rgba(22,163,74,0.4)] flex items-center gap-2">
+                <i data-lucide="plus-circle" class="w-5 h-5"></i> DEPOSIT
+            </button>
+        </div>
+    </header>
+
+    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Kiri: Game Slot -->
+        <div class="lg:col-span-7 bg-zinc-900 border border-zinc-800 rounded-[2.5rem] p-4 md:p-8 flex flex-col gap-6 relative overflow-hidden">
+            <!-- Dekorasi Lampu -->
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-600 via-yellow-500 to-red-600 animate-pulse"></div>
+
+            <!-- Area Reel -->
+            <div class="grid grid-cols-3 gap-3 md:gap-6 bg-black p-4 rounded-3xl border-4 border-zinc-800 shadow-inner">
+                <div class="reel-window"><div id="reel-1" class="reel-strip"></div></div>
+                <div class="reel-window"><div id="reel-2" class="reel-strip"></div></div>
+                <div class="reel-window"><div id="reel-3" class="reel-strip"></div></div>
+            </div>
+
+            <!-- Kontrol -->
+            <div class="flex flex-col gap-4">
+                <div class="flex justify-between items-center bg-black/40 p-3 rounded-2xl border border-white/5">
+                    <span class="text-xs font-bold text-zinc-400">TARUHAN (BET)</span>
+                    <select id="bet-select" class="bg-zinc-800 border-none rounded-lg text-sm font-bold text-white px-4 py-1 outline-none">
+                        <option value="5000">Rp 5.000</option>
+                        <option value="25000">Rp 25.000</option>
+                        <option value="100000">Rp 100.000</option>
+                    </select>
+                </div>
+
+                <button id="spin-btn" onclick="mulaiSpin()" class="w-full bg-gradient-to-b from-red-500 to-red-700 hover:from-red-400 hover:to-red-600 text-white font-black py-5 rounded-2xl text-2xl shadow-[0_10px_0_#991b1b] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-3">
+                    <i data-lucide="play" class="w-8 h-8 fill-current"></i> SPIN SEKARANG
+                </button>
+            </div>
+        </div>
+
+        <!-- Kanan: Log Edukasi & Analisis -->
+        <div class="lg:col-span-5 flex flex-col gap-6">
+            <div class="bg-zinc-900 border border-zinc-800 rounded-[2.5rem] p-6 h-[500px] flex flex-col shadow-xl">
+                <h2 class="text-sm font-black text-zinc-500 uppercase tracking-tighter mb-4 flex items-center gap-2">
+                    <i data-lucide="cpu" class="w-4 h-4 text-red-500"></i> Server Log: Manipulasi Algoritma
+                </h2>
+                <div id="log-container" class="flex-grow overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                    <div class="bg-zinc-950 p-3 rounded-xl border border-white/5 text-[11px] text-zinc-400">
+                        Sistem standby. Silakan lakukan deposit untuk memulai simulasi kehilangan uang.
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Navbar Serasi -->
-    <nav class="bg-neutral-900 border-b border-red-600/30 px-6 py-4 sticky top-0 z-40 shadow-lg backdrop-blur-md bg-neutral-900/90">
-        <div class="max-w-6xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-2 text-red-500 font-black text-xl italic uppercase tracking-tighter">
-                <i data-lucide="gamepad-2" class="text-red-500"></i> SIMULASI RUNGKAD
+    <!-- Modal Deposit Otentik -->
+    <div id="depo-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-zinc-900 w-full max-w-md rounded-[2.5rem] border border-zinc-700 overflow-hidden shadow-2xl">
+            <div class="bg-red-600 p-6 flex justify-between items-center">
+                <h2 class="font-black text-white italic tracking-tighter">FORM DEPOSIT CEPAT</h2>
+                <button onclick="closeDepo()" class="text-white/80 hover:text-white"><i data-lucide="x"></i></button>
             </div>
-            <a href="member_dashboard.html" class="bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition border border-zinc-700 shadow-md">
-                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> <span class="hidden md:inline">DASHBOARD</span>
-            </a>
-        </div>
-    </nav>
-
-    <main class="flex-grow max-w-6xl mx-auto w-full p-4 md:p-6 flex flex-col lg:flex-row gap-8 items-start mt-4 overflow-y-auto">
-        <!-- Kiri: Mesin Simulasi -->
-        <div class="w-full lg:w-3/5" id="mesin-container">
-            <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 shadow-2xl relative">
-                <div class="text-center mb-8">
-                    <h1 class="text-3xl font-black text-white italic tracking-widest mb-2 shadow-red-500 text-shadow-sm">MESIN PENGURAS HARTA</h1>
-                    <p class="text-zinc-500 text-sm">Coba putar, dan rasakan bagaimana algoritma ini dirancang khusus untuk membuat Anda miskin secara perlahan.</p>
+            <div class="p-8 space-y-6">
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-zinc-500 uppercase">Pilih Nominal</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="setDepoVal(50000)" class="bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-sm font-bold border border-white/5 transition">50.000</button>
+                        <button onclick="setDepoVal(100000)" class="bg-zinc-800 hover:bg-zinc-700 py-3 rounded-xl text-sm font-bold border border-white/5 transition">100.000</button>
+                    </div>
                 </div>
-                <div class="bg-black border border-zinc-800 rounded-xl p-4 mb-8 flex justify-between items-center shadow-inner">
-                    <span class="text-zinc-500 font-bold uppercase tracking-wider text-sm">Saldo Anda</span>
-                    <span id="saldo-display" class="text-3xl font-black text-green-400 font-mono tracking-tighter">Rp 1.000.000</span>
+                <div class="p-4 bg-zinc-950 rounded-2xl border border-white/5 flex flex-col items-center gap-4">
+                    <div class="w-32 h-32 bg-white p-2 rounded-lg">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=RUNGKAD_DONG" alt="QRIS Palsu">
+                    </div>
+                    <p class="text-[10px] text-center text-zinc-500">Scan QRIS di atas (Hanya Simulasi) untuk mengisi saldo virtual Anda.</p>
                 </div>
-                <div class="flex justify-center gap-2 md:gap-4 mb-8 bg-black p-4 md:p-6 rounded-2xl border-4 border-zinc-800 shadow-inner relative overflow-hidden">
-                    <div class="win-line"></div>
-                    <div class="reel-window w-24 md:w-32 bg-zinc-950 rounded-lg border-2 border-zinc-900"><div id="reel-1" class="reel-strip"></div></div>
-                    <div class="reel-window w-24 md:w-32 bg-zinc-950 rounded-lg border-2 border-zinc-900"><div id="reel-2" class="reel-strip"></div></div>
-                    <div class="reel-window w-24 md:w-32 bg-zinc-950 rounded-lg border-2 border-zinc-900"><div id="reel-3" class="reel-strip"></div></div>
-                </div>
-                <div class="flex gap-4">
-                    <button onclick="resetSimulasi()" class="bg-zinc-800 hover:bg-zinc-700 text-white p-4 rounded-xl transition flex justify-center items-center border border-zinc-700" title="Reset Saldo">
-                        <i data-lucide="rotate-ccw" class="w-6 h-6"></i>
-                    </button>
-                    <button id="spin-btn" onclick="mulaiSpin()" class="flex-grow bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-xl transition shadow-[0_0_20px_rgba(220,38,38,0.3)] flex items-center justify-center gap-2 text-lg md:text-xl active:scale-[0.98]">
-                        <i data-lucide="play" class="w-6 h-6"></i> PUTAR SEKARANG
-                    </button>
-                </div>
+                <button onclick="prosesDepo()" class="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black py-4 rounded-xl transition uppercase tracking-tighter shadow-lg">
+                    Konfirmasi Deposit
+                </button>
             </div>
         </div>
+    </div>
 
-        <!-- Kanan: Log Edukasi -->
-        <div class="w-full lg:w-2/5 bg-zinc-900 border border-zinc-800 rounded-3xl p-6 h-[600px] flex flex-col shadow-xl">
-            <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2 border-b border-zinc-800 pb-4">
-                <i data-lucide="activity" class="text-red-500"></i> Analisis Sistem Algoritma
-            </h2>
-            <p class="text-sm text-zinc-400 mb-4">Sistem ini memantau taruhan Anda. Tidak ada yang namanya "hoki" di sini. Bermain di mesin ini sama saja Anda sedang menyumbang EXP ke kecerdasan Anda bahwa ini semua bohongan.</p>
-            <div id="log-box" class="flex-grow bg-black rounded-xl border border-zinc-800 p-4 overflow-y-auto font-mono text-sm space-y-1"></div>
-        </div>
-    </main>
+    <script>
+        let saldo = 0;
+        const symbols = ['💎', '🍒', '🍋', '🔔', '⭐', '7️⃣'];
+        const spinCountLog = 0;
+        let isSpinning = false;
+        let depoAmount = 50000;
+
+        // Inisialisasi Reel
+        function initReels() {
+            [1, 2, 3].forEach(id => {
+                const reel = document.getElementById(`reel-${id}`);
+                reel.innerHTML = '';
+                // Buat strip panjang agar bisa di-scroll
+                for(let i=0; i<20; i++) {
+                    const symbol = symbols[Math.floor(Math.random() * symbols.length)];
+                    const div = document.createElement('div');
+                    div.className = 'symbol';
+                    div.innerText = symbol;
+                    reel.appendChild(div);
+                }
+            });
+        }
+
+        function openDepo() { document.getElementById('depo-modal').style.display = 'flex'; }
+        function closeDepo() { document.getElementById('depo-modal').style.display = 'none'; }
+        function setDepoVal(val) { depoAmount = val; }
+
+        function prosesDepo() {
+            saldo += depoAmount;
+            updateUI();
+            addLog("Deposit Berhasil!", `Saldo Rp ${depoAmount.toLocaleString()} ditambahkan. Bandar tersenyum lebar melihat uang Anda masuk ke sistem.`, "success");
+            closeDepo();
+        }
+
+        function updateUI() {
+            document.getElementById('saldo-display').innerText = `Rp ${saldo.toLocaleString()}`;
+        }
+
+        function addLog(title, desc, type = "info") {
+            const container = document.getElementById('log-container');
+            const div = document.createElement('div');
+            const color = type === "success" ? "text-green-500" : (type === "warning" ? "text-yellow-500" : "text-red-500");
+            div.className = "log-entry bg-black/60 p-4 rounded-2xl border border-white/5";
+            div.innerHTML = `
+                <h4 class="text-[11px] font-black uppercase mb-1 ${color}">${title}</h4>
+                <p class="text-[10px] text-zinc-400 leading-relaxed">${desc}</p>
+            `;
+            container.prepend(div);
+        }
+
+        async function mulaiSpin() {
+            if (isSpinning) return;
+            const bet = parseInt(document.getElementById('bet-select').value);
+
+            if (saldo < bet) {
+                addLog("SALDO TIDAK CUKUP", "Yah, uang simulasi kamu habis. Persis seperti di dunia nyata, bandar akan membuangmu jika tidak punya uang lagi. Silakan deposit lagi.", "error");
+                openDepo();
+                return;
+            }
+
+            saldo -= bet;
+            updateUI();
+            isSpinning = true;
+            document.getElementById('spin-btn').disabled = true;
+
+            // Logika Manipulasi: 
+            // - Spin ke-1 sampai ke-3: Kasih menang dikit (biar seneng)
+            // - Spin ke-4 dst: Habiskan!
+            window.spinCount = (window.spinCount || 0) + 1;
+            
+            let winChance = 0.1; // Default RTP 10% (Sangat kejam)
+            if (window.spinCount <= 2) winChance = 0.7; // 2 Spin pertama kemungkinan menang tinggi (Hook)
+
+            const isWin = Math.random() < winChance;
+
+            // Animasi Spin
+            [1, 2, 3].forEach((id, idx) => {
+                const reel = document.getElementById(`reel-${id}`);
+                const shift = Math.floor(Math.random() * 10) + 5;
+                reel.style.transition = `transform ${2 + idx * 0.5}s cubic-bezier(0.45, 0.05, 0.55, 0.95)`;
+                reel.style.transform = `translateY(-${shift * 150}px)`;
+            });
+
+            setTimeout(() => {
+                if (isWin) {
+                    const winAmt = bet * 2;
+                    saldo += winAmt;
+                    updateUI();
+                    addLog("KEMENANGAN PALSU!", `Selamat! Anda "menang" Rp ${winAmt.toLocaleString()}. Ini adalah taktik 'Hook' agar hormon dopamin Anda melonjak dan ingin main lagi dengan bet lebih besar.`, "success");
+                    document.body.classList.add('jackpot-anim');
+                    setTimeout(() => document.body.classList.remove('jackpot-anim'), 1000);
+                } else {
+                    addLog("RUNGKAD!", `Zonk! Anda kehilangan Rp ${bet.toLocaleString()}. Algoritma PRNG (Pseudo Random Number Generator) telah memastikan bandar tetap untung 90% dari total taruhan pemain.`, "error");
+                }
+                
+                // Reset posisi tanpa animasi untuk loop berikutnya
+                setTimeout(() => {
+                    [1, 2, 3].forEach(id => {
+                        const reel = document.getElementById(`reel-${id}`);
+                        reel.style.transition = 'none';
+                        reel.style.transform = 'translateY(0)';
+                    });
+                    isSpinning = false;
+                    document.getElementById('spin-btn').disabled = false;
+                }, 500);
+
+            }, 3500);
+        }
+
+        window.onload = () => {
+            initReels();
+            lucide.createIcons();
+            addLog("System Online", "Gunakan simulator ini untuk melihat bagaimana algoritma 'menyedot' saldo pemain secara perlahan namun pasti.", "info");
+        };
+    </script>
 </body>
 </html>
