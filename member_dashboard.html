@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEMBER AREA - SMK ANTI RUNGKAD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCIzxy9dKBWechcr_f4rfjrakzb5NBe_gA",
+            authDomain: "login-website-judol.firebaseapp.com",
+            projectId: "login-website-judol",
+            storageBucket: "login-website-judol.firebasestorage.app",
+            messagingSenderId: "1094661331467",
+            appId: "1:1094661331467:web:d82b020ada91fd9f20050e"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) { window.location.href = "index.html"; } 
+            else {
+                document.getElementById('user-email-display').innerText = user.email;
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if(userDoc.exists()) {
+                    const data = userDoc.data();
+                    document.getElementById('welcome-name').innerText = data.nama || 'Siswa SMK';
+                    const exp = data.exp || 0; const level = data.level || 1;
+                    let maxExp = 100, rankName = "Rentan (Pemula)", barColor = "bg-red-500";
+                    if(level === 2) { maxExp = 250; rankName = "Sadar Bahaya"; barColor = "bg-orange-500"; }
+                    else if(level === 3) { maxExp = 500; rankName = "Kritis (Menengah)"; barColor = "bg-yellow-500"; }
+                    else if(level === 4) { maxExp = 1000; rankName = "Paham Algoritma"; barColor = "bg-blue-500"; }
+                    else if(level >= 5) { maxExp = exp; rankName = "Anti-Rungkad (Ahli)"; barColor = "bg-green-500"; }
+
+                    document.getElementById('user-level-badge').innerText = `Level ${level}: ${rankName}`;
+                    document.getElementById('user-exp-text').innerText = level >= 5 ? `${exp} EXP (MAX)` : `${exp} / ${maxExp} EXP`;
+                    
+                    const percentage = level >= 5 ? 100 : Math.min(100, (exp / maxExp) * 100);
+                    const expBar = document.getElementById('user-exp-bar');
+                    expBar.style.width = `${percentage}%`;
+                    expBar.className = `h-2.5 rounded-full transition-all duration-1000 ${barColor} shadow-[0_0_10px_currentColor]`;
+                }
+                loadMateriPreview();
+            }
+        });
+
+        async function loadMateriPreview() {
+            const container = document.getElementById('latest-materi-container');
+            try {
+                const q = query(collection(db, "materi"), orderBy("createdAt", "desc"), limit(2));
+                const snap = await getDocs(q);
+                let html = "";
+                snap.forEach(doc => {
+                    const m = doc.data();
+                    html += `
+                        <div class="bg-zinc-900/50 border border-zinc-800 p-4 rounded-xl flex flex-col justify-between">
+                            <div>
+                                <span class="text-[9px] font-black text-yellow-500 uppercase tracking-tighter">${m.kategori || 'INFO'}</span>
+                                <h4 class="text-white font-bold text-sm line-clamp-1 mt-1">${m.judul}</h4>
+                            </div>
+                            <button onclick="goToPage('materi.html')" class="mt-4 text-xs text-yellow-500 font-bold flex items-center gap-1 hover:gap-2 transition-all w-max">
+                                BACA SEKARANG <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html || '<p class="text-zinc-600 italic text-xs">Belum ada pembaruan data.</p>';
+                lucide.createIcons();
+            } catch (e) { console.error(e); }
+        }
+        window.handleLogout = async () => { await signOut(auth); window.location.href = "index.html"; };
+        window.goToPage = (pageName, category = null) => { if(category) window.location.href = `${pageName}?filter=${category}`; else window.location.href = pageName; };
+        lucide.createIcons();
+    </script>
+    <style>
+        body { background-color: #000; background-image: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0.95)), url("https://www.transparenttextures.com/patterns/dark-matter.png"); color: #e5e5e5; }
+        .gold-border { border: 1px solid #FFD700; box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); }
+    </style>
+</head>
+<body class="font-sans min-h-screen flex flex-col overflow-x-hidden">
+    <!-- Navbar Responsif -->
+    <nav class="bg-neutral-900 border-b border-yellow-600/30 px-4 md:px-6 py-4 sticky top-0 z-50 shadow-lg backdrop-blur-md">
+        <div class="max-w-6xl mx-auto flex flex-row justify-between items-center gap-2">
+            <div class="flex items-center gap-2 text-yellow-500 font-black text-lg md:text-xl italic tracking-tighter cursor-pointer" onclick="location.reload()">
+                <i data-lucide="shield-alert" class="w-5 h-5 md:w-6 md:h-6"></i> <span class="hidden sm:inline">ANTIRUNGKAD<span class="text-white">.ORG</span></span><span class="sm:hidden text-white">RUNGKAD</span>
+            </div>
+            <div class="flex items-center gap-3 md:gap-4 shrink-0">
+                <div class="text-right hidden sm:block">
+                    <p class="text-[9px] md:text-[10px] text-gray-400 uppercase tracking-wider">Akun Member</p>
+                    <p id="user-email-display" class="text-xs md:text-sm font-bold text-zinc-300 truncate max-w-[100px] md:max-w-[150px]">Loading...</p>
+                </div>
+                <button onclick="handleLogout()" class="bg-red-900/30 border border-red-600 text-red-500 hover:bg-red-600 hover:text-white px-3 md:px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition">
+                    <i data-lucide="log-out" class="w-3 h-3 md:w-4 md:h-4"></i> <span class="hidden sm:inline">LOGOUT</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-4 md:p-6 w-full flex-grow">
+        
+        <!-- Header Section -->
+        <div class="bg-gradient-to-r from-yellow-700 to-yellow-900 rounded-2xl md:rounded-3xl p-1 shadow-lg mb-6 md:mb-8 gold-border relative overflow-hidden">
+            <div class="bg-black/80 backdrop-blur-md p-5 md:p-8 h-full rounded-xl md:rounded-2xl relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+                <div class="w-full lg:max-w-xl">
+                    <h1 class="text-2xl sm:text-3xl md:text-4xl font-black mb-2 text-white italic uppercase tracking-tighter leading-tight">
+                        TETAP WARAS, <br class="sm:hidden"/><span class="text-yellow-400" id="welcome-name">Siswa</span>! 👋
+                    </h1>
+                    <p class="text-gray-300 font-medium text-xs sm:text-sm leading-relaxed">Platform ini didedikasikan untuk membongkar kebohongan judi online. Selesaikan tantangan dan kumpulkan EXP untuk meningkatkan Imunitas Logikamu!</p>
+                </div>
+                
+                <!-- Kotak Gamifikasi Full Width di HP -->
+                <div class="bg-zinc-900/80 border border-zinc-700 p-4 sm:p-5 rounded-2xl w-full lg:w-80 shrink-0 shadow-inner">
+                    <div class="flex justify-between items-end mb-2">
+                        <div class="flex-1">
+                            <p class="text-[9px] sm:text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Tingkat Imunitas</p>
+                            <p id="user-level-badge" class="text-xs sm:text-sm font-black text-blue-400">Loading...</p>
+                        </div>
+                        <div class="text-right shrink-0 ml-2">
+                            <p class="text-[9px] sm:text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Experience</p>
+                            <p id="user-exp-text" class="text-xs sm:text-sm font-bold text-yellow-500">0 EXP</p>
+                        </div>
+                    </div>
+                    <div class="w-full bg-black rounded-full h-2 md:h-2.5 mt-3 border border-zinc-800 overflow-hidden">
+                        <div id="user-exp-bar" class="bg-zinc-600 h-2 md:h-2.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            <i data-lucide="brain-circuit" class="absolute -right-5 md:-right-10 -bottom-5 md:-bottom-10 w-32 md:w-48 h-32 md:h-48 text-yellow-500/10 -rotate-12 pointer-events-none"></i>
+        </div>
+
+        <!-- RESPONSIVE GRID -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
+            
+            <!-- KOLOM KIRI: Menu -->
+            <div class="lg:col-span-2 space-y-4 md:space-y-6">
+                <h3 class="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-zinc-500 italic flex items-center gap-2">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i> Pusat Literasi (Dapatkan EXP)
+                </h3>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                    <div onclick="goToPage('materi.html', 'ALGORITMA')" class="bg-zinc-900 p-5 md:p-6 rounded-2xl border border-zinc-800 hover:border-yellow-500 transition-all cursor-pointer group flex flex-row sm:flex-col items-center sm:items-start gap-4 sm:gap-0">
+                        <div class="bg-yellow-900/30 w-12 h-12 rounded-xl flex items-center justify-center sm:mb-4 text-yellow-500 group-hover:scale-110 transition shrink-0"><i data-lucide="cpu" class="w-6 h-6"></i></div>
+                        <div>
+                            <h3 class="font-black text-base md:text-lg text-white mb-1">Fakta Algoritma</h3>
+                            <p class="text-[11px] md:text-xs text-gray-500">Membongkar settingan bandar dan RNG.</p>
+                        </div>
+                    </div>
+
+                    <div onclick="goToPage('materi.html', 'TESTIMONI')" class="bg-zinc-900 p-5 md:p-6 rounded-2xl border border-zinc-800 hover:border-red-500 transition-all cursor-pointer group flex flex-row sm:flex-col items-center sm:items-start gap-4 sm:gap-0">
+                        <div class="bg-red-900/30 w-12 h-12 rounded-xl flex items-center justify-center sm:mb-4 text-red-500 group-hover:scale-110 transition shrink-0"><i data-lucide="video" class="w-6 h-6"></i></div>
+                        <div>
+                            <h3 class="font-black text-base md:text-lg text-white mb-1">Video Testimoni</h3>
+                            <p class="text-[11px] md:text-xs text-gray-500">Kisah nyata hancurnya hidup akibat Judol.</p>
+                        </div>
+                    </div>
+
+                    <div onclick="goToPage('materi.html', 'PSIKOLOGI')" class="bg-zinc-900 p-5 md:p-6 rounded-2xl border border-zinc-800 hover:border-blue-500 transition-all cursor-pointer group flex flex-row sm:flex-col items-center sm:items-start gap-4 sm:gap-0">
+                        <div class="bg-blue-900/30 w-12 h-12 rounded-xl flex items-center justify-center sm:mb-4 text-blue-500 group-hover:scale-110 transition shrink-0"><i data-lucide="brain" class="w-6 h-6"></i></div>
+                        <div>
+                            <h3 class="font-black text-base md:text-lg text-white mb-1">Risiko Psikologi</h3>
+                            <p class="text-[11px] md:text-xs text-gray-500">Adiksi, dopamin, dan mental.</p>
+                        </div>
+                    </div>
+
+                    <div onclick="goToPage('materi.html', 'HUKUM')" class="bg-zinc-900 p-5 md:p-6 rounded-2xl border border-zinc-800 hover:border-green-500 transition-all cursor-pointer group flex flex-row sm:flex-col items-center sm:items-start gap-4 sm:gap-0">
+                        <div class="bg-green-900/30 w-12 h-12 rounded-xl flex items-center justify-center sm:mb-4 text-green-500 group-hover:scale-110 transition shrink-0"><i data-lucide="scale" class="w-6 h-6"></i></div>
+                        <div>
+                            <h3 class="font-black text-base md:text-lg text-white mb-1">Hukum & UU ITE</h3>
+                            <p class="text-[11px] md:text-xs text-gray-500">Risiko pidana dan jeratan hukum.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tombol Action W-Full di HP, 2 Kolom di Tablet -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 pt-4 border-t border-zinc-800">
+                    <button onclick="goToPage('game.html')" class="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 py-4 md:py-5 rounded-xl font-bold text-sm text-zinc-300 flex items-center justify-center gap-2 transition relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 bg-blue-600 text-white text-[8px] px-2 py-0.5 rounded-bl-lg font-black">+EXP</div>
+                        <i data-lucide="gamepad-2" class="text-red-500 w-5 h-5 group-hover:scale-110 transition"></i> Simulasi Mesin
+                    </button>
+                    <button onclick="goToPage('kuis.html')" class="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 py-4 md:py-5 rounded-xl font-bold text-sm text-zinc-300 flex items-center justify-center gap-2 transition relative overflow-hidden group">
+                        <div class="absolute top-0 right-0 bg-blue-600 text-white text-[8px] px-2 py-0.5 rounded-bl-lg font-black">+EXP</div>
+                        <i data-lucide="check-square" class="text-green-500 w-5 h-5 group-hover:scale-110 transition"></i> Evaluasi (Kuis)
+                    </button>
+                </div>
+            </div>
+
+            <!-- KOLOM KANAN: Chatbot -->
+            <div class="space-y-4 md:space-y-6">
+                <div class="bg-gradient-to-b from-zinc-900 to-black border border-blue-900/50 p-5 md:p-6 rounded-2xl relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition duration-500">
+                        <i data-lucide="bot" class="w-20 h-20 md:w-24 md:h-24 text-blue-500"></i>
+                    </div>
+                    <div class="relative z-10">
+                        <span class="bg-blue-600 text-white text-[9px] font-black uppercase px-2 py-1 rounded mb-3 inline-block">+EXP Saat Interaksi</span>
+                        <h3 class="text-lg md:text-xl font-black text-white mb-2">Konsultasi Anonim</h3>
+                        <p class="text-xs md:text-sm text-zinc-400 mb-6 leading-relaxed">Butuh teman cerita? AI kami siap memberikan saran psikologis dan solusi tanpa menghakimi.</p>
+                        <button onclick="goToPage('chat.html')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 md:py-4 rounded-xl transition flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(37,99,235,0.4)] text-sm md:text-base">
+                            <i data-lucide="message-circle" class="w-4 h-4 md:w-5 md:h-5"></i> Mulai Obrolan
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-zinc-900 border border-zinc-800 p-5 md:p-6 rounded-2xl">
+                    <h3 class="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-4 flex items-center gap-2">
+                        <i data-lucide="bell" class="w-4 h-4"></i> Publikasi Terbaru
+                    </h3>
+                    <div id="latest-materi-container" class="space-y-3">
+                        <div class="animate-pulse bg-zinc-800 h-16 rounded-xl w-full"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-auto py-6 md:py-8 text-center text-zinc-700 text-[9px] md:text-[10px] border-t border-zinc-900 uppercase tracking-[0.2em] md:tracking-[0.3em] font-bold px-4">
+        &copy; 2024 ANTIRUNGKAD.ORG • SATUAN TUGAS EDUKASI DIGITAL SMK
+    </footer>
+</body>
+</html>

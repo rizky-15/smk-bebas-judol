@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beranda - Literasi Anti-Judol</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes scroll {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        .marquee {
+            white-space: nowrap; overflow: hidden; background: #ff0000; color: white; padding: 6px 0; font-weight: bold; font-size: 0.875rem;
+        }
+        .marquee p { display: inline-block; animation: scroll 15s linear infinite; }
+        .bg-judol { background: linear-gradient(180deg, #1a1a1a 0%, #000000 100%); }
+        .gold-border { border: 2px solid #d4af37; }
+        .btn-neon { background: linear-gradient(90deg, #ff8c00, #ff0000); box-shadow: 0 0 15px rgba(255, 0, 0, 0.5); transition: 0.3s; }
+        .btn-neon:hover { box-shadow: 0 0 25px rgba(255, 0, 0, 0.8); transform: scale(1.02); }
+    </style>
+</head>
+<body class="bg-judol text-white font-sans overflow-x-hidden flex flex-col min-h-screen">
+
+    <div class="marquee shrink-0">
+        <p>⚠️ PERINGATAN: JUDI ONLINE ADALAH PENIPUAN SETTINGAN ADMIN! JANGAN KORBANKAN MASA DEPANMU DI SMK! SALDO ANDA ADALAH TARGET MEREKA! ⚠️</p>
+    </div>
+
+    <header class="py-8 md:py-12 px-4 md:px-6 text-center border-b border-yellow-600/30">
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-black italic tracking-tighter text-yellow-500 mb-2">
+            SLOT <span class="text-white">EDUKASI</span> 88
+        </h1>
+        <p class="text-gray-400 text-xs md:text-sm mb-6 md:mb-10 px-2">SITUS LITERASI NOMOR #1 UNTUK ANAK SMK ANTI-RUNGKAD</p>
+        
+        <div class="max-w-4xl mx-auto gold-border rounded-xl md:rounded-2xl p-6 md:p-10 bg-black/50 relative overflow-hidden mx-2 md:mx-auto">
+            <div class="absolute top-0 left-0 bg-yellow-500 text-black px-3 py-1 font-bold text-[10px] md:text-xs tracking-widest">HOT PROMO</div>
+            <h2 class="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4 mt-2 md:mt-0 leading-tight">JACKPOT <span class="text-yellow-400">MASA DEPAN!</span></h2>
+            <p class="text-sm md:text-lg lg:text-xl mb-6 md:mb-8 text-gray-300">Dapatkan "Kemenangan" Mutlak dengan TIDAK PERNAH Deposit!</p>
+            
+            <!-- RESPONSIVE BUTTONS: flex-col on mobile, flex-row on desktop -->
+            <div class="flex flex-col sm:flex-row justify-center gap-4 w-full">
+                <button onclick="showAlert('auth')" class="w-full sm:w-auto btn-neon px-6 md:px-10 py-3 md:py-4 rounded-full font-extrabold text-sm md:text-lg uppercase tracking-widest">
+                    DAFTAR SEKARANG
+                </button>
+                <button onclick="showAlert('auth')" class="w-full sm:w-auto border-2 border-white px-6 md:px-10 py-3 md:py-4 rounded-full font-extrabold text-sm md:text-lg uppercase tracking-widest hover:bg-white hover:text-black transition">
+                    LOGIN MEMBER
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <section class="py-10 md:py-16 px-4 md:px-6 max-w-6xl mx-auto w-full">
+        <!-- RESPONSIVE GRID: 1 col mobile, 2 cols tablet, 4 cols desktop -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <div onclick="showAlert('dummy')" class="cursor-pointer bg-zinc-900 p-6 md:p-8 rounded-xl text-center hover:bg-zinc-800 border border-zinc-700 transition shadow-lg">
+                <div class="text-4xl mb-3">🎰</div>
+                <h3 class="font-black text-yellow-500 tracking-wider">SLOT LOGIKA</h3>
+            </div>
+            <div onclick="showAlert('dummy')" class="cursor-pointer bg-zinc-900 p-6 md:p-8 rounded-xl text-center hover:bg-zinc-800 border border-zinc-700 transition shadow-lg">
+                <div class="text-4xl mb-3">⚽</div>
+                <h3 class="font-black text-yellow-500 tracking-wider">BOLA DUNIA</h3>
+            </div>
+            <div onclick="showAlert('dummy')" class="cursor-pointer bg-zinc-900 p-6 md:p-8 rounded-xl text-center hover:bg-zinc-800 border border-zinc-700 transition shadow-lg">
+                <div class="text-4xl mb-3">🃏</div>
+                <h3 class="font-black text-yellow-500 tracking-wider">CASINO DATA</h3>
+            </div>
+            <div onclick="showAlert('dummy')" class="cursor-pointer bg-zinc-900 p-6 md:p-8 rounded-xl text-center hover:bg-zinc-800 border border-zinc-700 transition shadow-lg">
+                <div class="text-4xl mb-3">📉</div>
+                <h3 class="font-black text-yellow-500 tracking-wider">TOGEL REALITA</h3>
+            </div>
+        </div>
+    </section>
+
+    <section class="py-10 md:py-16 bg-zinc-950 px-4 md:px-6 flex-grow">
+        <div class="max-w-4xl mx-auto">
+            <h2 class="text-xl md:text-3xl font-black text-yellow-500 mb-6 flex items-center gap-3 italic uppercase">
+                <span class="bg-yellow-500 w-2 h-6 md:h-10 block"></span>
+                KENAPA SITUS INI BERBEDA?
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 text-gray-300 text-sm md:text-base leading-relaxed">
+                <p class="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800">Kami sengaja menggunakan tampilan ini karena banyak teman-teman SMK yang terjebak visual menarik situs judi. Faktanya, di balik warna-warni ini ada algoritma yang sudah di-setting untuk menyedot uang jajanmu.</p>
+                <p class="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800">Jangan biarkan cita-citamu setelah lulus SMK hancur hanya karena ingin "uang cepat". Ingat, tidak ada orang kaya karena judi, yang kaya adalah bandarnya.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-8 md:py-10 px-4 md:px-6 bg-black border-t border-zinc-800 text-center text-zinc-500 text-xs md:text-sm shrink-0">
+        <p class="mb-3 font-bold">Link Alternatif Kami:</p>
+        <div class="flex flex-col sm:flex-row justify-center gap-2 sm:gap-6 mb-8">
+            <a href="#" onclick="handleDummyLink(event)" class="text-yellow-600 hover:text-yellow-400 hover:underline">www.menang-terus-gan.net</a>
+            <a href="#" onclick="handleDummyLink(event)" class="text-yellow-600 hover:text-yellow-400 hover:underline">www.slot-gacor-smk.biz</a>
+        </div>
+        <p>&copy; 2024 Gerakan SMK Anti-Judol. Semua Hak Dilindungi (Kecuali Saldo Penjudi).</p>
+    </footer>
+
+    <!-- Custom Modal -->
+    <div id="custom-alert" class="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] hidden px-4 p-4 backdrop-blur-sm">
+        <div class="bg-zinc-900 border-2 border-red-600 p-6 md:p-8 rounded-2xl max-w-md w-full text-center shadow-[0_0_50px_rgba(220,38,38,0.5)]">
+            <div class="text-5xl md:text-6xl mb-4 animate-bounce">🚫</div>
+            <h2 class="text-xl md:text-2xl font-black text-red-500 mb-4 uppercase tracking-wider">Bahaya Terdeteksi!</h2>
+            <p id="alert-text" class="text-gray-300 mb-6 leading-relaxed text-sm md:text-base">Teks peringatan akan muncul di sini.</p>
+            <div class="flex flex-col gap-3 w-full">
+                <button id="btn-lanjut-login" onclick="goToLogin()" class="hidden bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 px-4 md:px-8 rounded-xl w-full transition border border-blue-500 text-sm">
+                    LANJUT KE PORTAL LOGIN ➔
+                </button>
+                <button onclick="closeAlert()" class="bg-red-600 hover:bg-red-500 text-white font-bold py-3.5 px-4 md:px-8 rounded-xl w-full transition text-sm">
+                    SAYA MENGERTI BAHAYANYA
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showAlert(actionType) {
+            const modal = document.getElementById('custom-alert');
+            const text = document.getElementById('alert-text');
+            const btnLanjut = document.getElementById('btn-lanjut-login');
+            if (actionType === 'auth') {
+                text.innerHTML = "Anda baru saja mengklik tombol yang mirip dengan situs judi. Di situs asli, klik ini adalah awal dari kehilangan uang jajan, data pribadi, dan kesehatan mental Anda.<br><br><span class='text-yellow-500 font-bold'>Ayo pindah ke halaman resmi untuk belajar faktanya!</span>";
+                btnLanjut.classList.remove('hidden');
+            } else {
+                text.innerHTML = "Jebakan situs judi selalu dibuat menarik! Di situs asli, klik ini bisa menguras saldo Anda seketika tanpa Anda sadari.";
+                btnLanjut.classList.add('hidden'); 
+            }
+            modal.classList.remove('hidden');
+        }
+        function handleDummyLink(e) {
+            e.preventDefault();
+            const modal = document.getElementById('custom-alert');
+            const text = document.getElementById('alert-text');
+            document.getElementById('btn-lanjut-login').classList.add('hidden');
+            text.innerHTML = "<span class='text-yellow-500 font-bold'>PERINGATAN KERAS:</span><br>Jangan klik link sembarangan! Link seperti ini sering mengandung phishing. Sekali klik, bisa-bisa data HP dan uang di e-wallet kamu hilang seketika.";
+            modal.classList.remove('hidden');
+        }
+        function closeAlert() { document.getElementById('custom-alert').classList.add('hidden'); }
+        function goToLogin() { window.location.href = 'login.html'; }
+    </script>
+</body>
+</html>

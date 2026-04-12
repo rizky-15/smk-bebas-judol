@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Member - SLOT EDUKASI 88</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* Tema Gelap & Emas mengikuti index.html */
+        .bg-judol {
+            background: linear-gradient(180deg, #1a1a1a 0%, #000000 100%);
+        }
+        .gold-border {
+            border: 2px solid #d4af37;
+        }
+        .btn-neon-red {
+            background: linear-gradient(90deg, #ff8c00, #ff0000);
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
+            transition: 0.3s;
+        }
+        .btn-neon-red:hover {
+            box-shadow: 0 0 25px rgba(255, 0, 0, 0.7);
+            transform: translateY(-2px);
+        }
+        .btn-neon-gold {
+            background: linear-gradient(90deg, #d4af37, #b8860b);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+            transition: 0.3s;
+        }
+        .btn-neon-gold:hover {
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.6);
+            transform: translateY(-2px);
+        }
+        .input-dark {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #333;
+            transition: 0.3s;
+        }
+        .input-dark:focus {
+            border-color: #d4af37;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+        }
+    </style>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyCIzxy9dKBWechcr_f4rfjrakzb5NBe_gA",
+            authDomain: "login-website-judol.firebaseapp.com",
+            projectId: "login-website-judol",
+            storageBucket: "login-website-judol.firebasestorage.app",
+            messagingSenderId: "1094661331467",
+            appId: "1:1094661331467:web:d82b020ada91fd9f20050e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        function redirectUser(role) {
+            if (role === 'admin') {
+                window.location.href = "admin_dashboard.html";
+            } else {
+                window.location.href = "member_dashboard.html";
+            }
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists()) {
+                    redirectUser(userDoc.data().role);
+                }
+            }
+        });
+
+        window.handleLogin = async (event) => {
+            event.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const btn = document.getElementById('login-btn');
+            const errorMsg = document.getElementById('login-error');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin w-5 h-5 mx-auto"></i>';
+            lucide.createIcons();
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+                if (userDoc.exists()) {
+                    redirectUser(userDoc.data().role);
+                }
+            } catch (error) {
+                errorMsg.innerText = "AKSES DITOLAK: Akun tidak ditemukan!";
+                errorMsg.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = 'LOGIN MEMBER';
+            }
+        };
+
+        window.handleRegister = async (event) => {
+            event.preventDefault();
+            const nama = document.getElementById('reg-nama').value;
+            const email = document.getElementById('reg-email').value;
+            const password = document.getElementById('reg-password').value;
+            const btn = document.getElementById('reg-btn');
+
+            btn.disabled = true;
+            btn.innerHTML = 'Mendaftarkan...';
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await setDoc(doc(db, "users", userCredential.user.uid), {
+                    nama: nama,
+                    email: email,
+                    role: "siswa",
+                    level: 1,
+                    status: "Active",
+                    createdAt: new Date()
+                });
+                alert("PENDAFTARAN BERHASIL! Selamat bergabung di member Anti-Rungkad.");
+                window.location.href = "member_dashboard.html";
+            } catch (error) {
+                alert("Gagal daftar: " + error.message);
+                btn.disabled = false;
+                btn.innerHTML = 'DAFTAR SEKARANG';
+            }
+        };
+
+        window.toggleForm = (type) => {
+            const loginSection = document.getElementById('login-section');
+            const registerSection = document.getElementById('register-section');
+            const title = document.getElementById('portal-title');
+
+            if(type === 'reg') {
+                loginSection.classList.add('hidden');
+                registerSection.classList.remove('hidden');
+                title.innerText = "DAFTAR MEMBER";
+            } else {
+                loginSection.classList.remove('hidden');
+                registerSection.classList.add('hidden');
+                title.innerText = "LOGIN MEMBER";
+            }
+        };
+
+        document.addEventListener("DOMContentLoaded", () => lucide.createIcons());
+    </script>
+</head>
+<body class="bg-judol text-white min-h-screen flex items-center justify-center p-6 font-sans">
+
+    <div class="max-w-md w-full bg-black/80 backdrop-blur-md gold-border rounded-2xl p-8 shadow-[0_0_40px_rgba(0,0,0,0.7)] relative overflow-hidden">
+        <!-- Dekorasi ala banner judol -->
+        <div class="absolute top-0 right-0 bg-yellow-500 text-black px-4 py-1 font-bold text-[10px] tracking-widest uppercase italic">Verified Site</div>
+        
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-black italic tracking-tighter text-yellow-500 mb-1">
+                SLOT <span class="text-white">EDUKASI</span> 88
+            </h1>
+            <h2 id="portal-title" class="text-xl font-bold tracking-widest text-gray-300 uppercase">LOGIN MEMBER</h2>
+            <div class="w-20 h-1 bg-yellow-600 mx-auto mt-2"></div>
+        </div>
+
+        <!-- Login Section -->
+        <div id="login-section" class="space-y-5">
+            <p id="login-error" class="hidden bg-red-900/50 border border-red-600 text-red-500 text-xs p-3 rounded text-center font-bold"></p>
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-yellow-600 uppercase tracking-widest ml-1">Username / Email</label>
+                    <div class="relative">
+                        <i data-lucide="user" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"></i>
+                        <input type="email" id="login-email" placeholder="Masukkan Email..." class="w-full pl-12 pr-4 py-4 input-dark rounded-xl outline-none text-white text-sm" required>
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-yellow-600 uppercase tracking-widest ml-1">Password</label>
+                    <div class="relative">
+                        <i data-lucide="lock" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500"></i>
+                        <input type="password" id="login-password" placeholder="Masukkan Password..." class="w-full pl-12 pr-4 py-4 input-dark rounded-xl outline-none text-white text-sm" required>
+                    </div>
+                </div>
+                <button type="submit" id="login-btn" class="w-full py-4 btn-neon-red rounded-xl font-black text-lg tracking-widest italic uppercase shadow-lg">
+                    MASUK SEKARANG
+                </button>
+            </form>
+            <p class="text-center mt-6 text-gray-500 text-xs">
+                Belum punya akun? <button onclick="toggleForm('reg')" class="text-yellow-500 font-bold hover:underline uppercase">Daftar Member Baru</button>
+            </p>
+        </div>
+
+        <!-- Register Section -->
+        <div id="register-section" class="hidden space-y-5">
+            <form onsubmit="handleRegister(event)" class="space-y-4">
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-yellow-600 uppercase tracking-widest ml-1">Nama Lengkap</label>
+                    <input type="text" id="reg-nama" placeholder="Sesuai Kartu Pelajar..." class="w-full px-4 py-4 input-dark rounded-xl outline-none text-white text-sm" required>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-yellow-600 uppercase tracking-widest ml-1">Email Sekolah</label>
+                    <input type="email" id="reg-email" placeholder="email@smk.id" class="w-full px-4 py-4 input-dark rounded-xl outline-none text-white text-sm" required>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-yellow-600 uppercase tracking-widest ml-1">Buat Password</label>
+                    <input type="password" id="reg-password" placeholder="Min. 6 Karakter" class="w-full px-4 py-4 input-dark rounded-xl outline-none text-white text-sm" minlength="6" required>
+                </div>
+                <button type="submit" id="reg-btn" class="w-full py-4 btn-neon-gold rounded-xl font-black text-lg tracking-widest italic uppercase text-black">
+                    DAFTAR SEKARANG
+                </button>
+            </form>
+            <p class="text-center mt-6 text-gray-500 text-xs">
+                Sudah jadi member? <button onclick="toggleForm('login')" class="text-yellow-500 font-bold hover:underline uppercase">Login Disini</button>
+            </p>
+        </div>
+        
+        <div class="mt-8 text-center pt-4 border-t border-gray-900">
+            <a href="index.html" class="text-gray-600 text-[10px] hover:text-white transition flex items-center justify-center gap-2 uppercase font-bold tracking-widest">
+                <i data-lucide="arrow-left" class="w-3 h-3"></i> Kembali ke Beranda Edukasi
+            </a>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - LITERASI ANTI JUDOL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, where } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCIzxy9dKBWechcr_f4rfjrakzb5NBe_gA",
+            authDomain: "login-website-judol.firebaseapp.com",
+            projectId: "login-website-judol",
+            storageBucket: "login-website-judol.firebasestorage.app",
+            messagingSenderId: "1094661331467",
+            appId: "1:1094661331467:web:d82b020ada91fd9f20050e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // State Global
+        window.currentEditId = null;
+        window.itemToDelete = { id: null, type: null }; 
+        window.soalCount = 0; 
+        window.linkCount = 0;
+        
+        // Data Cache untuk Statistik
+        let totalSiswa = 0;
+        let totalMateri = 0;
+        let totalKuis = 0;
+
+        // --- AUTH & ROLE CHECK (BUG FIXED) ---
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = "login.html";
+                return;
+            }
+            
+            try {
+                const docRef = doc(db, "users", user.uid);
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists() && docSnap.data().role === 'admin') {
+                    const adminName = user.email.split('@')[0];
+                    document.getElementById('admin-name').innerText = adminName;
+                    if(document.getElementById('admin-name-mobile')) {
+                        document.getElementById('admin-name-mobile').innerText = adminName;
+                    }
+                    
+                    loadDataSiswa().finally(() => updateOverviewStats());
+                    loadDataMateri().finally(() => updateOverviewStats());
+                    loadDataKuis().finally(() => updateOverviewStats());
+
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const activeTab = urlParams.get('tab');
+                    if(activeTab) {
+                        window.switchTab(activeTab);
+                    } else {
+                        window.switchTab('dashboard');
+                    }
+                    
+                } else {
+                    window.location.href = "member_dashboard.html";
+                }
+            } catch (err) {
+                console.error("Gagal verifikasi admin:", err);
+                showNotification("Terjadi kesalahan koneksi database.", true);
+            }
+        });
+
+        window.logout = function() {
+            signOut(auth).then(() => {
+                window.location.href = "index.html";
+            });
+        };
+
+        // ==========================================
+        // TAB NAVIGATION LOGIC (RESPONSIF)
+        // ==========================================
+        window.switchTab = function(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            
+            document.querySelectorAll('.sidebar-menu').forEach(el => {
+                el.classList.remove('bg-yellow-600/20', 'text-yellow-500', 'border-r-4', 'border-yellow-500');
+                el.classList.add('text-zinc-400', 'hover:bg-zinc-800', 'hover:text-white');
+            });
+            
+            document.querySelectorAll('.mobile-tab-btn').forEach(el => {
+                el.classList.remove('bg-zinc-800', 'text-yellow-500', 'border-yellow-500/50');
+                el.classList.add('bg-zinc-900', 'text-zinc-400', 'border-transparent');
+            });
+
+            const targetTab = document.getElementById(`tab-${tabName}`);
+            if (targetTab) targetTab.classList.remove('hidden');
+            
+            const activeBtn = document.getElementById(`btn-tab-${tabName}`);
+            if(activeBtn) {
+                activeBtn.classList.remove('text-zinc-400', 'hover:bg-zinc-800', 'hover:text-white');
+                activeBtn.classList.add('bg-yellow-600/20', 'text-yellow-500', 'border-r-4', 'border-yellow-500');
+            }
+            
+            const mobileBtn = document.getElementById(`m-btn-tab-${tabName}`);
+            if(mobileBtn) {
+                mobileBtn.classList.remove('bg-zinc-900', 'text-zinc-400', 'border-transparent');
+                mobileBtn.classList.add('bg-zinc-800', 'text-yellow-500', 'border-yellow-500/50');
+            }
+        };
+
+        function updateOverviewStats() {
+            document.getElementById('stat-siswa').innerText = totalSiswa;
+            document.getElementById('stat-materi').innerText = totalMateri;
+            document.getElementById('stat-kuis').innerText = totalKuis;
+        }
+
+        function showNotification(msg, isError = false) {
+            const notif = document.getElementById('notification');
+            notif.innerText = msg;
+            notif.className = `fixed top-5 right-5 left-5 md:left-auto px-6 py-3 rounded-xl font-bold text-white shadow-2xl z-[200] transition-all duration-300 opacity-0 translate-y-[-20px] md:translate-y-0 md:translate-x-10 text-center md:text-left ${isError ? 'bg-red-600 border border-red-500' : 'bg-green-600 border border-green-500'}`;
+            
+            setTimeout(() => notif.classList.remove('opacity-0', 'translate-y-[-20px]', 'md:translate-x-10'), 10);
+            setTimeout(() => notif.classList.add('opacity-0', 'translate-y-[-20px]', 'md:translate-x-10'), 3000);
+        }
+
+        // ==========================================
+        // MODAL KONFIRMASI HAPUS
+        // ==========================================
+        window.openDeleteModal = function(id, type) {
+            window.itemToDelete = { id, type };
+            document.getElementById('delete-modal').classList.remove('hidden');
+        };
+
+        window.closeDeleteModal = function() {
+            window.itemToDelete = { id: null, type: null };
+            document.getElementById('delete-modal').classList.add('hidden');
+        };
+
+        window.executeDelete = async function() {
+            const { id, type } = window.itemToDelete;
+            if(!id || !type) return;
+
+            const btn = document.getElementById('btn-confirm-delete');
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Menghapus...`;
+            
+            try {
+                const collectionName = type === 'materi' ? 'materi' : 'quizzes';
+                await deleteDoc(doc(db, collectionName, id));
+                showNotification(`Data ${type} berhasil dihapus!`);
+                closeDeleteModal();
+                
+                if(type === 'materi') {
+                    await loadDataMateri();
+                    updateOverviewStats();
+                } else {
+                    await loadDataKuis();
+                    updateOverviewStats();
+                }
+            } catch (error) {
+                showNotification("Gagal menghapus data.", true);
+            }
+            btn.innerHTML = `Hapus`;
+            if (window.lucide) lucide.createIcons();
+        };
+
+        // ==========================================
+        // FITUR BARU: LOG AKTIVITAS SISWA
+        // ==========================================
+        window.openLogModal = async function(userId, userName) {
+            document.getElementById('log-modal').classList.remove('hidden');
+            document.getElementById('log-student-name').innerText = userName;
+            const container = document.getElementById('log-timeline-container');
+            
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-16">
+                    <i data-lucide="loader-2" class="w-8 h-8 animate-spin text-blue-500 mb-4"></i>
+                    <p class="text-zinc-500 text-sm animate-pulse">Menarik data dari database...</p>
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+
+            try {
+                const userDoc = await getDoc(doc(db, "users", userId));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    let logs = data.activityLogs || []; // Diambil dari array 'activityLogs'
+
+                    // Fallback visual jika fitur baru belum merekam, tapi siswa sudah punya EXP
+                    if (logs.length === 0 && data.exp > 0) {
+                        let fallbackTime = new Date().toISOString();
+                        if (data.createdAt) {
+                            fallbackTime = data.createdAt.toDate ? data.createdAt.toDate().toISOString() : new Date(data.createdAt).toISOString();
+                        }
+                        logs.push({
+                            activity: "Aktivitas Edukasi (Akumulasi Historis)",
+                            expGained: data.exp,
+                            timestamp: fallbackTime
+                        });
+                    }
+
+                    if (logs.length === 0) {
+                        container.innerHTML = `
+                            <div class="text-center py-16 bg-zinc-900/50 rounded-2xl border border-zinc-800">
+                                <div class="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4"><i data-lucide="clock" class="w-8 h-8 text-zinc-600"></i></div>
+                                <h3 class="text-zinc-300 font-bold mb-1">Belum Ada Riwayat</h3>
+                                <p class="text-zinc-500 text-sm">Siswa ini belum melakukan interaksi apa pun.</p>
+                            </div>
+                        `;
+                    } else {
+                        // Urutkan dari yang terbaru ke terlama
+                        logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                        let html = '<div class="relative border-l-2 border-zinc-800 ml-4 md:ml-6 mt-4 space-y-8 pb-8">';
+                        logs.forEach((log, index) => {
+                            const dateObj = new Date(log.timestamp);
+                            const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                            const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                            
+                            // Tentukan Icon & Warna berdasarkan kata kunci aktivitas
+                            let icon = 'zap'; let colorClass = 'text-blue-500'; let bgClass = 'bg-blue-500/10 border-blue-500/30';
+                            if (log.activity.toLowerCase().includes('kuis') || log.activity.toLowerCase().includes('evaluasi')) {
+                                icon = 'check-circle-2'; colorClass = 'text-green-500'; bgClass = 'bg-green-500/10 border-green-500/30';
+                            } else if (log.activity.toLowerCase().includes('materi') || log.activity.toLowerCase().includes('baca')) {
+                                icon = 'book-open'; colorClass = 'text-yellow-500'; bgClass = 'bg-yellow-500/10 border-yellow-500/30';
+                            } else if (log.activity.toLowerCase().includes('simulasi') || log.activity.toLowerCase().includes('rungkad')) {
+                                icon = 'gamepad-2'; colorClass = 'text-red-500'; bgClass = 'bg-red-500/10 border-red-500/30';
+                            }
+
+                            // Efek delay animasi (Staggered fade-in)
+                            const animationDelay = index * 0.1;
+
+                            html += `
+                                <div class="relative pl-8 md:pl-10 animate-[fadeIn_0.5s_ease-out_forwards] opacity-0" style="animation-delay: ${animationDelay}s">
+                                    <span class="absolute -left-[17px] top-1 w-8 h-8 rounded-full bg-zinc-900 border-[3px] border-[#0a0a0c] flex items-center justify-center ${colorClass}">
+                                        <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>
+                                    </span>
+                                    <div class="bg-zinc-900/50 p-4 md:p-5 rounded-2xl border border-zinc-800/80 hover:bg-zinc-800/50 transition relative overflow-hidden group">
+                                        <div class="absolute right-0 top-0 w-24 h-24 ${bgClass} blur-2xl opacity-0 group-hover:opacity-50 transition rounded-full -mr-10 -mt-10"></div>
+                                        <div class="flex justify-between items-start mb-2 relative z-10">
+                                            <h4 class="font-bold text-sm md:text-base text-white pr-4">${log.activity}</h4>
+                                            <span class="text-[10px] md:text-xs font-black ${colorClass} ${bgClass} px-2 py-1 rounded whitespace-nowrap">+${log.expGained} EXP</span>
+                                        </div>
+                                        <time class="text-[10px] md:text-xs text-zinc-500 font-medium flex items-center gap-1.5 relative z-10"><i data-lucide="calendar" class="w-3 h-3"></i> ${dateStr}, ${timeStr}</time>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                        container.innerHTML = html;
+                    }
+                }
+                if (window.lucide) lucide.createIcons();
+            } catch(e) {
+                console.error(e);
+                container.innerHTML = `<div class="text-center py-10 text-red-500">Terjadi kesalahan sistem saat mengambil log.</div>`;
+            }
+        };
+
+        window.closeLogModal = function() {
+            document.getElementById('log-modal').classList.add('hidden');
+        };
+
+        // ==========================================
+        // MANAJEMEN SISWA (MONITORING & GAMIFICATION)
+        // ==========================================
+        window.loadDataSiswa = async function() {
+            const tbody = document.getElementById('table-siswa-body');
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-zinc-500"><i data-lucide="loader-2" class="w-6 h-6 animate-spin mx-auto mb-2"></i> Memuat data siswa...</td></tr>`;
+            
+            try {
+                const q = query(collection(db, "users"), where("role", "==", "siswa"));
+                const snap = await getDocs(q);
+                let html = '';
+                totalSiswa = snap.size;
+
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const joinDate = d.createdAt ? new Date(d.createdAt.toDate ? d.createdAt.toDate() : d.createdAt).toLocaleDateString('id-ID') : 'Tidak diketahui';
+                    
+                    const exp = d.exp || 0;
+                    const level = d.level || 1;
+                    
+                    let rankName = "Rentan (Pemula)";
+                    let rankColor = "text-red-500 bg-red-500/10 border-red-500/30";
+                    let rankIcon = "alert-circle";
+
+                    if (level >= 5) {
+                        rankName = "Anti-Rungkad";
+                        rankColor = "text-green-500 bg-green-500/10 border-green-500/30";
+                        rankIcon = "shield-check";
+                    } else if (level >= 3) {
+                        rankName = "Kritis";
+                        rankColor = "text-yellow-500 bg-yellow-500/10 border-yellow-500/30";
+                        rankIcon = "brain";
+                    }
+
+                    const literacyBadge = `
+                        <div class="flex flex-col gap-1.5 w-max">
+                            <span class="px-2 py-1 rounded border text-[9px] md:text-[10px] font-black uppercase tracking-wider flex items-center gap-1 w-max ${rankColor}">
+                                <i data-lucide="${rankIcon}" class="w-3 h-3"></i> ${rankName}
+                            </span>
+                            <span class="text-[10px] md:text-xs font-bold text-zinc-400">Lvl ${level} <span class="text-blue-400 ml-1">• ${exp} EXP</span></span>
+                        </div>
+                    `;
+
+                    html += `
+                        <tr class="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition text-sm">
+                            <td class="p-3 md:p-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-full bg-blue-900/50 flex items-center justify-center text-blue-500 font-bold border border-blue-800/50 shrink-0">
+                                        ${d.nama ? d.nama.charAt(0).toUpperCase() : 'S'}
+                                    </div>
+                                    <div>
+                                        <p class="font-bold text-white text-xs md:text-sm">${d.nama || 'Siswa Tanpa Nama'}</p>
+                                        <p class="text-[10px] text-zinc-500">${d.email}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="p-3 md:p-4">${literacyBadge}</td>
+                            <td class="p-3 md:p-4 text-zinc-400 text-xs">${joinDate}</td>
+                            <td class="p-3 md:p-4">
+                                <span class="bg-green-900/30 text-green-500 text-[10px] font-bold px-2 py-1 rounded-full border border-green-800/50 flex items-center w-max gap-1">
+                                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Aktif
+                                </span>
+                            </td>
+                            <td class="p-3 md:p-4 text-right">
+                                <!-- TOMBOL LOG AKTIVITAS (TIDAK LAGI ALERT) -->
+                                <button onclick="openLogModal('${doc.id}', '${d.nama || 'Anonim'}')" class="bg-blue-900/30 border border-blue-800/50 text-blue-400 hover:bg-blue-600 hover:text-white px-3 py-1.5 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ml-auto">
+                                    <i data-lucide="history" class="w-3 h-3"></i> Log Aktivitas
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tbody.innerHTML = html || `<tr><td colspan="5" class="text-center py-10 text-zinc-500 font-medium">Belum ada siswa yang mendaftar.</td></tr>`;
+                if (window.lucide) lucide.createIcons();
+            } catch (error) {
+                console.error(error);
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-red-500 text-xs md:text-sm">Gagal memuat data siswa.<br>Pastikan Security Rules Firebase membaca koleksi 'users' diizinkan.</td></tr>`;
+            }
+        };
+
+        // ==========================================
+        // MANAJEMEN MATERI (CRUD & MULTIPLE LINKS)
+        // ==========================================
+        window.loadDataMateri = async function() {
+            const tbody = document.getElementById('table-materi-body');
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-zinc-400">Memuat data...</td></tr>`;
+            
+            try {
+                const q = query(collection(db, "materi"), orderBy("createdAt", "desc"));
+                const snap = await getDocs(q);
+                let html = '';
+                
+                window.materiDataCache = {}; 
+                totalMateri = snap.size;
+
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    window.materiDataCache[doc.id] = d;
+                    
+                    let jmlTautan = 0;
+                    if(d.fileUrls && Array.isArray(d.fileUrls)) jmlTautan = d.fileUrls.length;
+                    else if(d.fileUrl) jmlTautan = 1;
+
+                    let linkBadge = jmlTautan > 0 
+                        ? `<span class="text-blue-400 text-xs font-bold whitespace-nowrap"><i data-lucide="link" class="w-3 h-3 inline"></i> ${jmlTautan} Media</span>` 
+                        : `<span class="text-zinc-600 text-xs italic">Teks Saja</span>`;
+
+                    html += `
+                        <tr class="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition text-sm">
+                            <td class="p-3 md:p-4 font-bold text-white text-xs md:text-sm min-w-[150px] whitespace-normal">${d.judul}</td>
+                            <td class="p-3 md:p-4"><span class="bg-yellow-900/30 text-yellow-500 text-[9px] md:text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full border border-yellow-700/50 whitespace-nowrap">${d.kategori || 'UMUM'}</span></td>
+                            <td class="p-3 md:p-4">${linkBadge}</td>
+                            <td class="p-3 md:p-4 text-right space-x-1 md:space-x-2 flex justify-end">
+                                <button onclick="openFormMateri('${doc.id}')" class="bg-blue-600/20 text-blue-500 hover:bg-blue-600 hover:text-white p-2 md:p-2.5 rounded-lg transition" title="Edit">
+                                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="openDeleteModal('${doc.id}', 'materi')" class="bg-red-600/20 text-red-500 hover:bg-red-600 hover:text-white p-2 md:p-2.5 rounded-lg transition" title="Hapus">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tbody.innerHTML = html || `<tr><td colspan="4" class="text-center py-6 text-zinc-500">Belum ada materi</td></tr>`;
+                if (window.lucide) lucide.createIcons();
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-500">Gagal memuat data materi.</td></tr>`;
+            }
+        };
+
+        window.tambahFieldLink = function(url = '') {
+            const container = document.getElementById('m-links-container');
+            const linkId = `link-${window.linkCount++}`;
+            const div = document.createElement('div');
+            div.className = "flex gap-2 items-center";
+            div.id = linkId;
+
+            div.innerHTML = `
+                <div class="flex-grow relative">
+                    <i data-lucide="link" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500"></i>
+                    <input type="text" class="m-file-url w-full bg-zinc-950 border border-zinc-700 rounded-xl py-3 pl-10 pr-4 text-white focus:outline-none focus:border-yellow-500 text-xs md:text-sm" value="${url}" placeholder="https://youtube.com/... atau link Drive/Gambar">
+                </div>
+                <button type="button" onclick="hapusFieldLink('${linkId}')" class="bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white p-3 rounded-xl transition border border-transparent hover:border-red-500 shrink-0">
+                    <i data-lucide="trash-2" class="w-4 h-4 md:w-5 md:h-5"></i>
+                </button>
+            `;
+            container.appendChild(div);
+            if (window.lucide) lucide.createIcons();
+        };
+
+        window.hapusFieldLink = function(id) { document.getElementById(id).remove(); };
+
+        window.openFormMateri = function(id = null) {
+            document.getElementById('modal-materi').classList.remove('hidden');
+            window.currentEditId = id;
+            document.getElementById('m-links-container').innerHTML = ''; 
+            window.linkCount = 0;
+            const form = document.getElementById('form-materi');
+            const title = document.getElementById('modal-materi-title');
+            
+            if (id && window.materiDataCache[id]) {
+                title.innerText = "Edit Publikasi";
+                const data = window.materiDataCache[id];
+                document.getElementById('m-judul').value = data.judul || '';
+                document.getElementById('m-kategori').value = data.kategori || 'UMUM';
+                document.getElementById('m-isi').value = data.isi || '';
+                
+                let urls = [];
+                if(data.fileUrls && Array.isArray(data.fileUrls)) urls = data.fileUrls;
+                else if (data.fileUrl && data.fileUrl.trim() !== '') urls = [data.fileUrl];
+
+                if(urls.length > 0) urls.forEach(u => window.tambahFieldLink(u));
+                else window.tambahFieldLink();
+            } else {
+                title.innerText = "Terbitkan Publikasi Baru";
+                form.reset();
+                document.getElementById('m-kategori').value = 'ALGORITMA'; 
+                window.tambahFieldLink();
+            }
+        };
+
+        window.closeFormMateri = function() {
+            document.getElementById('modal-materi').classList.add('hidden');
+            document.getElementById('form-materi').reset();
+            window.currentEditId = null;
+        };
+
+        window.saveMateri = async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-materi');
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Menyimpan...`;
+
+            try {
+                const urlInputs = document.querySelectorAll('.m-file-url');
+                const fileUrlsArray = [];
+                urlInputs.forEach(input => { if(input.value.trim() !== '') fileUrlsArray.push(input.value.trim()); });
+
+                const dataToSave = {
+                    judul: document.getElementById('m-judul').value,
+                    kategori: document.getElementById('m-kategori').value,
+                    isi: document.getElementById('m-isi').value,
+                    fileUrls: fileUrlsArray,
+                    updatedAt: new Date().toISOString()
+                };
+
+                if (window.currentEditId) {
+                    await updateDoc(doc(db, "materi", window.currentEditId), dataToSave);
+                    showNotification("Materi berhasil diperbarui!");
+                } else {
+                    dataToSave.createdAt = new Date().toISOString();
+                    await addDoc(collection(db, "materi"), dataToSave);
+                    showNotification("Materi baru berhasil ditambahkan!");
+                }
+                
+                closeFormMateri();
+                await loadDataMateri();
+                updateOverviewStats();
+            } catch (error) {
+                showNotification("Gagal menyimpan materi.", true);
+            }
+            btn.disabled = false;
+            btn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Simpan Publikasi`;
+            if (window.lucide) lucide.createIcons();
+        };
+
+        // ==========================================
+        // MANAJEMEN KUIS (CRUD & BULK IMPORT)
+        // ==========================================
+        window.loadDataKuis = async function() {
+            const tbody = document.getElementById('table-kuis-body');
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-zinc-400">Memuat data...</td></tr>`;
+            try {
+                const q = query(collection(db, "quizzes"), orderBy("createdAt", "desc"));
+                const snap = await getDocs(q);
+                let html = '';
+                window.kuisDataCache = {}; 
+                totalKuis = snap.size;
+
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    window.kuisDataCache[doc.id] = d;
+                    const jmlSoal = d.daftarSoal && Array.isArray(d.daftarSoal) ? d.daftarSoal.length : 0;
+                    html += `
+                        <tr class="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition text-sm">
+                            <td class="p-3 md:p-4 font-bold text-white text-xs md:text-sm min-w-[150px] whitespace-normal">${d.judul || doc.id}</td>
+                            <td class="p-3 md:p-4 text-zinc-400 truncate max-w-[120px] md:max-w-[200px] text-[10px] md:text-xs">${d.deskripsi || '-'}</td>
+                            <td class="p-3 md:p-4"><span class="text-green-400 font-bold text-[10px] md:text-xs whitespace-nowrap"><i data-lucide="list-checks" class="w-3 h-3 inline"></i> ${jmlSoal} Soal</span></td>
+                            <td class="p-3 md:p-4 text-right space-x-1 md:space-x-2 flex justify-end">
+                                <button onclick="openFormKuis('${doc.id}')" class="bg-blue-600/20 text-blue-500 hover:bg-blue-600 hover:text-white p-2 md:p-2.5 rounded-lg transition" title="Edit"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                                <button onclick="openDeleteModal('${doc.id}', 'kuis')" class="bg-red-600/20 text-red-500 hover:bg-red-600 hover:text-white p-2 md:p-2.5 rounded-lg transition" title="Hapus"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                tbody.innerHTML = html || `<tr><td colspan="4" class="text-center py-6 text-zinc-500">Belum ada kuis</td></tr>`;
+                if (window.lucide) lucide.createIcons();
+            } catch (error) { tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-red-500">Gagal memuat data kuis</td></tr>`; }
+        };
+
+        window.tambahFieldSoal = function(soalData = null) {
+            const container = document.getElementById('soal-container');
+            const soalId = `soal-${window.soalCount}`;
+            const p = soalData ? soalData.pertanyaan : '';
+            const o0 = soalData && soalData.opsi ? soalData.opsi[0] : '';
+            const o1 = soalData && soalData.opsi ? soalData.opsi[1] : '';
+            const o2 = soalData && soalData.opsi ? soalData.opsi[2] : '';
+            const o3 = soalData && soalData.opsi ? soalData.opsi[3] : '';
+            const jb = soalData ? soalData.jawabanBenar : 0; 
+            
+            const div = document.createElement('div');
+            div.className = "soal-item bg-zinc-800/50 p-4 md:p-5 rounded-2xl border border-zinc-700 relative mb-4 animate-[fadeIn_0.3s_ease-out]";
+            div.id = soalId;
+
+            div.innerHTML = `
+                <div class="absolute top-4 right-4 flex gap-2">
+                    <span class="text-[10px] md:text-xs font-bold text-zinc-500 px-2 py-1 bg-zinc-900 rounded">SOAL ${window.soalCount + 1}</span>
+                    <button type="button" onclick="hapusFieldSoal('${soalId}')" class="text-zinc-500 hover:text-red-500 transition bg-zinc-900 hover:bg-red-500/20 p-1 md:p-1.5 rounded"><i data-lucide="x" class="w-3 h-3 md:w-4 md:h-4"></i></button>
+                </div>
+                <div class="mb-4 pr-20">
+                    <label class="block text-[10px] md:text-xs font-bold text-zinc-400 mb-1 uppercase tracking-widest">Pertanyaan</label>
+                    <textarea class="q-pertanyaan w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-white outline-none focus:border-green-500 text-xs md:text-sm" rows="2" required placeholder="Tuliskan pertanyaan...">${p}</textarea>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-4">
+                    <div><label class="block text-[10px] font-bold text-zinc-500 mb-1 uppercase">Opsi A</label><input type="text" class="q-opsi bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 md:p-3 w-full text-white outline-none focus:border-green-500 text-xs md:text-sm" value="${o0}" required></div>
+                    <div><label class="block text-[10px] font-bold text-zinc-500 mb-1 uppercase">Opsi B</label><input type="text" class="q-opsi bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 md:p-3 w-full text-white outline-none focus:border-green-500 text-xs md:text-sm" value="${o1}" required></div>
+                    <div><label class="block text-[10px] font-bold text-zinc-500 mb-1 uppercase">Opsi C</label><input type="text" class="q-opsi bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 md:p-3 w-full text-white outline-none focus:border-green-500 text-xs md:text-sm" value="${o2}" required></div>
+                    <div><label class="block text-[10px] font-bold text-zinc-500 mb-1 uppercase">Opsi D</label><input type="text" class="q-opsi bg-zinc-950 border border-zinc-700 rounded-lg p-2.5 md:p-3 w-full text-white outline-none focus:border-green-500 text-xs md:text-sm" value="${o3}" required></div>
+                </div>
+                <div class="bg-green-900/10 border border-green-800/30 p-2.5 md:p-3 rounded-xl flex items-center justify-between">
+                    <label class="text-[10px] md:text-xs font-bold text-green-500 uppercase tracking-widest flex items-center gap-2"><i data-lucide="check-circle-2" class="w-3 h-3 md:w-4 md:h-4"></i> Kunci</label>
+                    <select class="q-jawaban bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-1.5 md:px-4 md:py-2 text-white outline-none focus:border-green-500 text-xs md:text-sm font-bold cursor-pointer">
+                        <option value="0" ${jb == 0 ? 'selected' : ''}>Opsi A</option><option value="1" ${jb == 1 ? 'selected' : ''}>Opsi B</option><option value="2" ${jb == 2 ? 'selected' : ''}>Opsi C</option><option value="3" ${jb == 3 ? 'selected' : ''}>Opsi D</option>
+                    </select>
+                </div>
+            `;
+            container.appendChild(div); window.soalCount++; if (window.lucide) lucide.createIcons();
+        };
+
+        window.hapusFieldSoal = function(id) { document.getElementById(id).remove(); };
+        window.toggleBulkImport = function() { document.getElementById('bulk-import-section').classList.toggle('hidden'); };
+
+        window.prosesImportTeks = function() {
+            const rawText = document.getElementById('bulk-text-input').value;
+            if (!rawText.trim()) { showNotification("Teks kosong! Paste dulu dari dokumen.", true); return; }
+            
+            const blocks = rawText.split(/(?=^\d+[\.\)]\s+)/m).filter(b => b.trim() !== '');
+            let importedCount = 0;
+            
+            blocks.forEach(block => {
+                const lines = block.split('\n').map(l => l.trim()).filter(l => l !== '');
+                let pertanyaan = "", opsiArray = ["", "", "", ""], jawabanBenar = 0;
+                for (let i = 0; i < lines.length; i++) {
+                    let line = lines[i];
+                    if (line.match(/^[aA][\.\)]\s+/)) opsiArray[0] = line.replace(/^[aA][\.\)]\s+/, '').trim();
+                    else if (line.match(/^[bB][\.\)]\s+/)) opsiArray[1] = line.replace(/^[bB][\.\)]\s+/, '').trim();
+                    else if (line.match(/^[cC][\.\)]\s+/)) opsiArray[2] = line.replace(/^[cC][\.\)]\s+/, '').trim();
+                    else if (line.match(/^[dD][\.\)]\s+/)) opsiArray[3] = line.replace(/^[dD][\.\)]\s+/, '').trim();
+                    else if (line.toUpperCase().includes('KUNCI') || line.toUpperCase().includes('JAWABAN')) {
+                        const kunciRaw = line.toUpperCase().replace(/KUNCI|JAWABAN|BENAR|:|\s/g, '');
+                        if (kunciRaw.includes('A')) jawabanBenar = 0; else if (kunciRaw.includes('B')) jawabanBenar = 1; else if (kunciRaw.includes('C')) jawabanBenar = 2; else if (kunciRaw.includes('D')) jawabanBenar = 3;
+                    } 
+                    else if (opsiArray[0] === "") pertanyaan += (pertanyaan ? "\n" : "") + line;
+                }
+                pertanyaan = pertanyaan.replace(/^\d+[\.\)]\s*/, '').trim();
+                if (pertanyaan && opsiArray[0] !== "" && opsiArray[1] !== "") {
+                    for(let j=0; j<4; j++) if(opsiArray[j] === "") opsiArray[j] = "-";
+                    window.tambahFieldSoal({ pertanyaan: pertanyaan, opsi: opsiArray, jawabanBenar: jawabanBenar });
+                    importedCount++;
+                }
+            });
+            if (importedCount > 0) {
+                showNotification(`${importedCount} Soal berhasil di-import!`);
+                document.getElementById('bulk-import-section').classList.add('hidden');
+                document.getElementById('bulk-text-input').value = '';
+            } else showNotification("Gagal ekstrak. Pastikan format: 1. Soal A. Opsi Kunci: A", true);
+        };
+
+        window.openFormKuis = function(id = null) {
+            document.getElementById('modal-kuis').classList.remove('hidden');
+            document.getElementById('bulk-import-section').classList.add('hidden'); 
+            window.currentEditId = id; document.getElementById('soal-container').innerHTML = ''; window.soalCount = 0;
+            const form = document.getElementById('form-kuis'); const title = document.getElementById('modal-kuis-title');
+            
+            if (id && window.kuisDataCache[id]) {
+                title.innerText = "Edit Paket Kuis"; const data = window.kuisDataCache[id];
+                document.getElementById('k-judul').value = data.judul || ''; document.getElementById('k-deskripsi').value = data.deskripsi || '';
+                if(data.daftarSoal && data.daftarSoal.length > 0) data.daftarSoal.forEach(s => window.tambahFieldSoal(s)); else window.tambahFieldSoal();
+            } else { title.innerText = "Buat Paket Kuis Baru"; form.reset(); window.tambahFieldSoal(); }
+        };
+
+        window.closeFormKuis = function() { document.getElementById('modal-kuis').classList.add('hidden'); document.getElementById('form-kuis').reset(); window.currentEditId = null; };
+
+        window.saveKuis = async function(e) {
+            e.preventDefault();
+            const soalItems = document.querySelectorAll('.soal-item'); const daftarSoal = [];
+            if(soalItems.length === 0) { showNotification("Sebuah kuis wajib memiliki minimal 1 pertanyaan!", true); return; }
+            
+            soalItems.forEach(item => {
+                const pertanyaan = item.querySelector('.q-pertanyaan').value;
+                const opsiArray = Array.from(item.querySelectorAll('.q-opsi')).map(o => o.value);
+                const jawabanBenar = parseInt(item.querySelector('.q-jawaban').value);
+                daftarSoal.push({ pertanyaan, opsi: opsiArray, jawabanBenar });
+            });
+
+            const btn = document.getElementById('btn-save-kuis'); btn.disabled = true; btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Menyimpan...`;
+            const dataToSave = { judul: document.getElementById('k-judul').value, deskripsi: document.getElementById('k-deskripsi').value, daftarSoal: daftarSoal, updatedAt: new Date().toISOString() };
+            
+            try {
+                if (window.currentEditId) { await updateDoc(doc(db, "quizzes", window.currentEditId), dataToSave); showNotification("Kuis berhasil diperbarui!"); } 
+                else { dataToSave.createdAt = new Date().toISOString(); await addDoc(collection(db, "quizzes"), dataToSave); showNotification("Kuis baru berhasil diluncurkan!"); }
+                closeFormKuis(); 
+                await loadDataKuis();
+                updateOverviewStats();
+            } catch (error) { showNotification("Gagal menyimpan kuis. Terjadi kesalahan server.", true); }
+            btn.disabled = false; btn.innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Simpan Publikasi`; if (window.lucide) lucide.createIcons();
+        };
+    </script>
+    
+    <style>
+        body { background-color: #050505; color: #e5e5e5; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px;}
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #52525b; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="font-sans min-h-screen flex flex-col md:flex-row overflow-hidden bg-[#07070a]">
+    
+    <!-- Toast Notification -->
+    <div id="notification" class="hidden"></div>
+
+    <!-- Modal Konfirmasi Hapus Responsif -->
+    <div id="delete-modal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 max-w-sm w-full text-center shadow-2xl">
+            <div class="w-16 h-16 md:w-20 md:h-20 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6 shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+                <i data-lucide="trash-2" class="w-8 h-8 md:w-10 md:h-10"></i>
+            </div>
+            <h2 class="text-xl md:text-2xl font-black text-white mb-2">Hapus Permanen?</h2>
+            <p id="delete-modal-text" class="text-zinc-400 text-xs md:text-sm mb-6 md:mb-8 leading-relaxed">Data yang dihapus tidak akan dapat dikembalikan lagi. Pastikan keputusan Anda.</p>
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button onclick="closeDeleteModal()" class="w-full sm:flex-1 py-3.5 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition text-sm">Batal</button>
+                <button id="btn-confirm-delete" onclick="executeDelete()" class="w-full sm:flex-1 py-3.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition flex justify-center items-center gap-2 shadow-[0_0_15px_rgba(220,38,38,0.4)] text-sm">Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Log Aktivitas -->
+    <div id="log-modal" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl h-[80vh] flex flex-col relative overflow-hidden">
+            <div class="flex justify-between items-center mb-6 shrink-0 border-b border-zinc-800 pb-4 relative z-10">
+                <div>
+                    <h2 class="text-xl md:text-2xl font-black text-white italic tracking-tight">Log <span class="text-blue-500">Aktivitas</span></h2>
+                    <p id="log-student-name" class="text-xs text-zinc-400 mt-1 font-bold">Nama Siswa</p>
+                </div>
+                <button onclick="closeLogModal()" class="text-zinc-500 hover:text-white bg-zinc-800 p-2 rounded-full transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <div id="log-timeline-container" class="overflow-y-auto pr-2 flex-grow custom-scrollbar relative z-10">
+                <!-- Timeline dari JS akan muncul di sini -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- HEADER & NAVBAR MOBILE (Tampil di HP saja) -->
+    <!-- ===================================== -->
+    <div class="md:hidden flex flex-col w-full shrink-0 z-30 bg-[#0a0a0c] border-b border-zinc-800 shadow-lg">
+        <div class="flex items-center justify-between p-4 border-b border-zinc-800/50">
+            <div class="flex items-center gap-2">
+                <div class="bg-yellow-500/20 p-1.5 rounded-lg"><i data-lucide="shield-check" class="w-5 h-5 text-yellow-500"></i></div>
+                <h1 class="text-lg font-black text-white italic tracking-tighter">ADMIN <span class="text-yellow-500">LMS</span></h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="admin-name-mobile" class="text-[10px] font-bold text-yellow-500 max-w-[80px] truncate">Admin</span>
+                <button onclick="logout()" class="text-red-500 hover:bg-red-500/10 p-1.5 rounded-lg transition"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+            </div>
+        </div>
+        <div class="flex overflow-x-auto p-3 gap-2 no-scrollbar">
+            <button id="m-btn-tab-dashboard" onclick="switchTab('dashboard')" class="mobile-tab-btn px-4 py-2 rounded-full bg-zinc-800 text-xs font-bold whitespace-nowrap text-yellow-500 border border-yellow-500/50 transition">Ikhtisar</button>
+            <button id="m-btn-tab-siswa" onclick="switchTab('siswa')" class="mobile-tab-btn px-4 py-2 rounded-full bg-zinc-900 text-xs font-bold whitespace-nowrap text-zinc-400 border border-transparent transition">Siswa</button>
+            <button id="m-btn-tab-materi" onclick="switchTab('materi')" class="mobile-tab-btn px-4 py-2 rounded-full bg-zinc-900 text-xs font-bold whitespace-nowrap text-zinc-400 border border-transparent transition">Materi</button>
+            <button id="m-btn-tab-kuis" onclick="switchTab('kuis')" class="mobile-tab-btn px-4 py-2 rounded-full bg-zinc-900 text-xs font-bold whitespace-nowrap text-zinc-400 border border-transparent transition">Kuis</button>
+        </div>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- SIDEBAR DESKTOP (Sembunyi di HP) -->
+    <!-- ===================================== -->
+    <aside class="hidden md:flex w-72 bg-[#0a0a0c] border-r border-zinc-800/50 flex-col h-screen shrink-0 z-20 shadow-2xl relative">
+        <div class="p-8 flex items-center justify-between md:block border-b border-zinc-800/50">
+            <div>
+                <h1 class="text-2xl font-black text-white italic tracking-tighter">ADMIN <span class="text-yellow-500">LMS</span></h1>
+                <p class="text-[9px] text-zinc-500 font-bold uppercase tracking-[0.2em] mt-1">Literasi Anti-Judol</p>
+            </div>
+        </div>
+
+        <nav class="flex-grow p-4 space-y-2 overflow-y-auto no-scrollbar">
+            <p class="px-4 text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-4">Menu Utama</p>
+            <button id="btn-tab-dashboard" onclick="switchTab('dashboard')" class="sidebar-menu w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm bg-yellow-600/20 text-yellow-500 border-r-4 border-yellow-500"><i data-lucide="layout-dashboard" class="w-5 h-5"></i> Ikhtisar (Overview)</button>
+            <button id="btn-tab-siswa" onclick="switchTab('siswa')" class="sidebar-menu w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-zinc-400 hover:bg-zinc-800 hover:text-white border-r-4 border-transparent"><i data-lucide="users" class="w-5 h-5"></i> Data Siswa</button>
+            
+            <p class="px-4 text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-2 mt-6">Manajemen Konten</p>
+            <button id="btn-tab-materi" onclick="switchTab('materi')" class="sidebar-menu w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-zinc-400 hover:bg-zinc-800 hover:text-white border-r-4 border-transparent"><i data-lucide="book-open" class="w-5 h-5"></i> Materi Edukasi</button>
+            <button id="btn-tab-kuis" onclick="switchTab('kuis')" class="sidebar-menu w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-bold text-sm text-zinc-400 hover:bg-zinc-800 hover:text-white border-r-4 border-transparent"><i data-lucide="brain-circuit" class="w-5 h-5"></i> Paket Kuis Logika</button>
+        </nav>
+
+        <div class="p-6 border-t border-zinc-800/50 bg-zinc-900/20">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-500 border border-yellow-500/30">
+                    <i data-lucide="shield-check" class="w-5 h-5"></i>
+                </div>
+                <div class="overflow-hidden">
+                    <p class="text-xs font-bold text-white truncate" id="admin-name">Adminstrator</p>
+                    <p class="text-[10px] text-green-500">Online Server Aktif</p>
+                </div>
+            </div>
+            <button onclick="logout()" class="w-full py-2.5 rounded-lg border border-red-900/50 text-red-500 hover:bg-red-500 hover:text-white transition text-xs font-bold flex items-center justify-center gap-2">
+                <i data-lucide="log-out" class="w-4 h-4"></i> KELUAR
+            </button>
+        </div>
+    </aside>
+
+    <!-- ===================================== -->
+    <!-- MAIN CONTENT AREA -->
+    <!-- ===================================== -->
+    <main class="flex-grow p-4 md:p-8 overflow-y-auto h-[calc(100vh-115px)] md:h-screen custom-scrollbar relative">
+        
+        <!-- Tab 1: DASHBOARD OVERVIEW -->
+        <div id="tab-dashboard" class="tab-content animate-[fadeIn_0.3s_ease-out]">
+            <h2 class="text-2xl md:text-3xl font-black text-white italic tracking-tight mb-2">Ikhtisar <span class="text-yellow-500">Sistem</span></h2>
+            <p class="text-xs md:text-sm text-zinc-400 mb-6 md:mb-8">Pantau perkembangan platform edukasi dan keaktifan siswa.</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8 md:mb-10">
+                <div class="bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 p-5 md:p-6 rounded-2xl md:rounded-3xl relative overflow-hidden shadow-xl group">
+                    <div class="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-blue-500/5 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-blue-500/10 transition"></div>
+                    <div class="flex justify-between items-start relative z-10">
+                        <div>
+                            <p class="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Total Siswa Aktif</p>
+                            <h3 class="text-3xl md:text-4xl font-black text-white" id="stat-siswa">0</h3>
+                        </div>
+                        <div class="bg-blue-900/30 p-2 md:p-3 rounded-xl md:rounded-2xl text-blue-500 border border-blue-800/30"><i data-lucide="users" class="w-5 h-5 md:w-6 md:h-6"></i></div>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 p-5 md:p-6 rounded-2xl md:rounded-3xl relative overflow-hidden shadow-xl group">
+                    <div class="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-yellow-500/5 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-yellow-500/10 transition"></div>
+                    <div class="flex justify-between items-start relative z-10">
+                        <div>
+                            <p class="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Materi Publikasi</p>
+                            <h3 class="text-3xl md:text-4xl font-black text-white" id="stat-materi">0</h3>
+                        </div>
+                        <div class="bg-yellow-900/30 p-2 md:p-3 rounded-xl md:rounded-2xl text-yellow-500 border border-yellow-800/30"><i data-lucide="book-open" class="w-5 h-5 md:w-6 md:h-6"></i></div>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-zinc-900 to-black border border-zinc-800 p-5 md:p-6 rounded-2xl md:rounded-3xl relative overflow-hidden shadow-xl group">
+                    <div class="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-green-500/5 rounded-full blur-2xl -mr-10 -mt-10 group-hover:bg-green-500/10 transition"></div>
+                    <div class="flex justify-between items-start relative z-10">
+                        <div>
+                            <p class="text-[9px] md:text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Paket Kuis</p>
+                            <h3 class="text-3xl md:text-4xl font-black text-white" id="stat-kuis">0</h3>
+                        </div>
+                        <div class="bg-green-900/30 p-2 md:p-3 rounded-xl md:rounded-2xl text-green-500 border border-green-800/30"><i data-lucide="brain-circuit" class="w-5 h-5 md:w-6 md:h-6"></i></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
+                <i data-lucide="shield-alert" class="absolute -bottom-5 -right-5 md:-bottom-10 md:-right-10 w-32 h-32 md:w-48 md:h-48 text-zinc-800/50 -rotate-12 pointer-events-none"></i>
+                <div class="relative z-10 max-w-2xl">
+                    <h3 class="text-lg md:text-xl font-bold text-white mb-2">Selamat Bertugas, Pendidik!</h3>
+                    <p class="text-xs md:text-sm text-zinc-400 leading-relaxed mb-6">Teruslah mengunggah materi yang relevan untuk menyelamatkan generasi bangsa dari jeratan judi online.</p>
+                    <button onclick="switchTab('materi')" class="w-full sm:w-auto bg-white text-black px-6 py-3 md:py-2.5 rounded-xl font-bold text-sm hover:bg-zinc-200 transition shadow-lg inline-flex items-center justify-center gap-2">
+                        Tambah Materi Sekarang <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: DATA SISWA -->
+        <div id="tab-siswa" class="tab-content hidden animate-[fadeIn_0.3s_ease-out]">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-black text-white italic tracking-tight mb-1">Monitoring <span class="text-blue-500">Siswa</span></h2>
+                    <p class="text-xs md:text-sm text-zinc-400">Pantau seluruh pendaftar dan progres edukasi mereka.</p>
+                </div>
+            </div>
+            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[700px]">
+                        <thead>
+                            <tr class="bg-zinc-950 border-b border-zinc-800 text-zinc-400 text-[10px] uppercase tracking-widest font-bold">
+                                <th class="p-3 md:p-4 pl-4 md:pl-6">Profil Siswa</th>
+                                <th class="p-3 md:p-4">Progres Literasi (Level & EXP)</th>
+                                <th class="p-3 md:p-4">Tanggal Gabung</th>
+                                <th class="p-3 md:p-4">Status Akun</th>
+                                <th class="p-3 md:p-4 pr-4 md:pr-6 text-right">Aksi Lanjutan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-siswa-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: MATERI EDUKASI -->
+        <div id="tab-materi" class="tab-content hidden animate-[fadeIn_0.3s_ease-out]">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-8 gap-4">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-black text-white italic tracking-tight mb-1">Manajemen <span class="text-yellow-500">Materi</span></h2>
+                    <p class="text-xs md:text-sm text-zinc-400">Kelola artikel, infografis, dan video edukasi.</p>
+                </div>
+                <button onclick="openFormMateri()" class="w-full sm:w-auto bg-yellow-600 hover:bg-yellow-500 text-black px-5 py-3 md:py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(202,138,4,0.3)] transition">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Buat Publikasi
+                </button>
+            </div>
+            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[700px]">
+                        <thead>
+                            <tr class="bg-zinc-950 border-b border-zinc-800 text-zinc-400 text-[10px] uppercase tracking-widest font-bold">
+                                <th class="p-3 md:p-4 pl-4 md:pl-6 w-1/3">Judul Materi</th>
+                                <th class="p-3 md:p-4">Kategori Label</th>
+                                <th class="p-3 md:p-4">Tautan Media</th>
+                                <th class="p-3 md:p-4 pr-4 md:pr-6 text-right">Peralatan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-materi-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: KUIS LOGIKA -->
+        <div id="tab-kuis" class="tab-content hidden animate-[fadeIn_0.3s_ease-out]">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-8 gap-4">
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-black text-white italic tracking-tight mb-1">Paket <span class="text-green-500">Kuis Logika</span></h2>
+                    <p class="text-xs md:text-sm text-zinc-400">Uji imunitas otak siswa dari janji manis judi.</p>
+                </div>
+                <button onclick="openFormKuis()" class="w-full sm:w-auto bg-green-600 hover:bg-green-500 text-black px-5 py-3 md:py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(22,163,74,0.3)] transition">
+                    <i data-lucide="plus" class="w-4 h-4"></i> Rakit Kuis Baru
+                </button>
+            </div>
+            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse whitespace-nowrap min-w-[700px]">
+                        <thead>
+                            <tr class="bg-zinc-950 border-b border-zinc-800 text-zinc-400 text-[10px] uppercase tracking-widest font-bold">
+                                <th class="p-3 md:p-4 pl-4 md:pl-6 w-1/4">Judul Kuis</th>
+                                <th class="p-3 md:p-4 w-1/3">Deskripsi Singkat</th>
+                                <th class="p-3 md:p-4">Detail Muatan</th>
+                                <th class="p-3 md:p-4 pr-4 md:pr-6 text-right">Peralatan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-kuis-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ===================================== -->
+    <!-- MODAL FORM MATERI -->
+    <!-- ===================================== -->
+    <div id="modal-materi" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+        <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 md:p-8 max-w-3xl w-full my-8 relative shadow-2xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 shrink-0 border-b border-zinc-800 pb-4">
+                <h2 id="modal-materi-title" class="text-xl md:text-2xl font-black text-yellow-500 italic uppercase tracking-tight">Tambah Publikasi</h2>
+                <button type="button" onclick="closeFormMateri()" class="text-zinc-500 hover:text-white bg-zinc-800 p-2 rounded-full transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <div class="overflow-y-auto pr-2 pb-4 flex-grow custom-scrollbar">
+                <form id="form-materi" onsubmit="saveMateri(event)" class="space-y-5 md:space-y-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
+                        <div>
+                            <label class="block text-[10px] font-bold text-zinc-400 mb-2 uppercase tracking-widest">Judul Utama *</label>
+                            <input type="text" id="m-judul" required class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 md:p-3.5 text-white focus:outline-none focus:border-yellow-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-zinc-400 mb-2 uppercase tracking-widest">Pilih Tag Kategori</label>
+                            <select id="m-kategori" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 md:p-3.5 text-white focus:outline-none focus:border-yellow-500 text-sm font-bold cursor-pointer">
+                                <option value="UMUM">📢 PENGUMUMAN UMUM</option>
+                                <option value="ALGORITMA">⚙️ FAKTA ALGORITMA</option>
+                                <option value="TESTIMONI">🎬 VIDEO TESTIMONI</option>
+                                <option value="PSIKOLOGI">🧠 RISIKO PSIKOLOGI</option>
+                                <option value="HUKUM">⚖️ HUKUM UU ITE</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-zinc-400 mb-2 uppercase tracking-widest">Teks Edukasi Lengkap *</label>
+                        <textarea id="m-isi" rows="6" required class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 md:p-4 text-white focus:outline-none focus:border-yellow-500 text-sm leading-relaxed" placeholder="Tuliskan materi mendetail di sini..."></textarea>
+                    </div>
+
+                    <div class="border-t border-dashed border-zinc-700 pt-5 md:pt-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
+                            <div>
+                                <h3 class="font-bold text-white text-sm uppercase tracking-wider">Tautan Media Eksternal</h3>
+                                <p class="text-[10px] text-zinc-500 mt-1">Masukkan Link YouTube atau Google Drive (Harus Public).</p>
+                            </div>
+                            <button type="button" onclick="tambahFieldLink()" class="w-full sm:w-auto bg-zinc-800 border border-yellow-500/50 text-yellow-500 hover:bg-yellow-600 hover:text-black px-3 py-2.5 md:py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition shrink-0">
+                                <i data-lucide="plus" class="w-4 h-4 md:w-3 md:h-3"></i> Tautan Tambahan
+                            </button>
+                        </div>
+                        <div id="m-links-container" class="space-y-3"></div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="flex flex-col sm:flex-row justify-end gap-3 pt-5 md:pt-6 border-t border-zinc-800 shrink-0 mt-2">
+                <button type="button" onclick="closeFormMateri()" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-zinc-800 text-white font-bold hover:bg-zinc-700 transition text-sm">Batalkan</button>
+                <button type="submit" form="form-materi" id="btn-save-materi" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-yellow-600 text-black font-black hover:bg-yellow-500 transition flex items-center justify-center gap-2 text-sm shadow-lg">
+                    <i data-lucide="save" class="w-4 h-4"></i> Siarkan Publikasi
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================== -->
+    <!-- MODAL FORM KUIS (BULK IMPORT CANGGIH) -->
+    <!-- ===================================== -->
+    <div id="modal-kuis" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+        <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-5 md:p-8 max-w-4xl w-full my-8 relative shadow-2xl h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-6 shrink-0 border-b border-zinc-800 pb-4">
+                <h2 id="modal-kuis-title" class="text-xl md:text-2xl font-black text-green-500 italic uppercase tracking-tight">Rakit Kuis Baru</h2>
+                <button onclick="closeFormKuis()" class="text-zinc-500 hover:text-white bg-zinc-800 p-2 rounded-full transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <div class="overflow-y-auto pr-2 pb-4 flex-grow custom-scrollbar">
+                <form id="form-kuis" onsubmit="saveKuis(event)" class="space-y-5 md:space-y-6">
+                    <div class="bg-zinc-950 p-4 md:p-5 rounded-2xl border border-zinc-800">
+                        <div class="mb-4 md:mb-5">
+                            <label class="block text-[10px] font-bold text-zinc-400 mb-2 uppercase tracking-widest">Judul Paket Kuis *</label>
+                            <input type="text" id="k-judul" required class="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white focus:outline-none focus:border-green-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-zinc-400 mb-2 uppercase tracking-widest">Instruksi / Tujuan Singkat *</label>
+                            <textarea id="k-deskripsi" rows="2" required class="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3.5 text-white focus:outline-none focus:border-green-500 text-sm leading-relaxed" placeholder="Jelaskan untuk apa kuis ini dibuat..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-dashed border-zinc-700 pt-5 md:pt-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 md:mb-6">
+                            <h3 class="font-bold text-white text-sm uppercase tracking-wider">Konstruksi Pertanyaan</h3>
+                            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                <button type="button" onclick="toggleBulkImport()" class="w-full sm:w-auto bg-blue-900/30 border border-blue-500/50 text-blue-400 hover:bg-blue-600 hover:text-white px-4 py-2.5 md:py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition">
+                                    <i data-lucide="clipboard-paste" class="w-4 h-4"></i> Copy-Paste dari Word
+                                </button>
+                                <button type="button" onclick="tambahFieldSoal()" class="w-full sm:w-auto bg-zinc-800 border border-green-500/50 text-green-500 hover:bg-green-600 hover:text-black px-4 py-2.5 md:py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition">
+                                    <i data-lucide="plus" class="w-4 h-4"></i> Ketik Manual
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- SECTION BULK IMPORT -->
+                        <div id="bulk-import-section" class="hidden bg-blue-950/30 border border-blue-900/50 rounded-2xl p-4 md:p-5 mb-6 md:mb-8 animate-[fadeIn_0.3s_ease-out]">
+                            <h4 class="text-blue-400 font-bold text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <i data-lucide="lightbulb" class="w-4 h-4"></i> Smart Import Engine
+                            </h4>
+                            <p class="text-[10px] md:text-xs text-zinc-400 mb-4 leading-relaxed">
+                                Paste puluhan soal secara instan. Pastikan teks memuat format: Angka titik <b>(1.)</b> untuk soal, Huruf kapital <b>(A.)</b> untuk opsi, dan kata <b>Kunci: A</b> di bagian akhirnya.
+                            </p>
+                            <textarea id="bulk-text-input" rows="6" class="w-full bg-black border border-zinc-700 rounded-xl p-3 md:p-4 text-zinc-300 outline-none focus:border-blue-500 text-xs md:text-sm font-mono mb-4" placeholder="1. Soal...\nA. Opsi 1\nB. Opsi 2\nC. Opsi 3\nD. Opsi 4\nKunci: B"></textarea>
+                            <button type="button" onclick="prosesImportTeks()" class="w-full bg-blue-600 hover:bg-blue-500 text-white px-4 py-3.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-lg">
+                                <i data-lucide="zap" class="w-4 h-4"></i> Ekstrak Otomatis ke Form
+                            </button>
+                        </div>
+                        
+                        <div id="soal-container"></div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="flex flex-col sm:flex-row justify-end gap-3 pt-5 md:pt-6 border-t border-zinc-800 shrink-0 mt-2">
+                <button type="button" onclick="closeFormKuis()" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-zinc-800 text-white font-bold hover:bg-zinc-700 transition text-sm">Batalkan</button>
+                <button type="submit" form="form-kuis" id="btn-save-kuis" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-green-600 text-black font-black hover:bg-green-500 transition flex items-center justify-center gap-2 text-sm shadow-[0_0_15px_rgba(22,163,74,0.3)]">
+                    <i data-lucide="check-circle" class="w-4 h-4"></i> Selesaikan Rakitan
+                </button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
