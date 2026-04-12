@@ -3,237 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Konsultasi AI - SLOT EDUKASI 88</title>
+    <title>Bang Anti - Teman Curhat & Solusi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        .bg-judol {
-            background: linear-gradient(180deg, #0f0f0f 0%, #000000 100%);
-        }
-        .gold-border {
-            border: 1px solid #d4af37;
-        }
-        .chat-container {
-            height: calc(100vh - 200px);
-            background: rgba(15, 15, 15, 0.8);
-        }
-        .message-bubble-ai {
-            background: #1a1a1a;
-            border-left: 3px solid #d4af37;
-        }
-        .message-bubble-user {
-            background: linear-gradient(90deg, #d4af37, #b8860b);
-            color: black;
-            font-weight: 600;
-        }
-        .typing-dot {
-            width: 6px;
-            height: 6px;
-            background: #d4af37;
-            border-radius: 50%;
-            display: inline-block;
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
-        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
-        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-
-        @keyframes bounce {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1.0); }
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        body { background-color: #050505; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-container { flex-grow: 1; overflow-y: auto; scrollbar-width: none; }
+        .message-ai { background: rgba(24, 24, 27, 0.8); border: 1px solid rgba(255, 255, 255, 0.05); border-left: 4px solid #dc2626; }
+        .message-user { background: linear-gradient(135deg, #dc2626 0%, #7f1d1d 100%); }
+        .input-glass { background: rgba(15, 15, 15, 0.9); backdrop-filter: blur(20px); border-top: 1px solid rgba(255, 255, 255, 0.05); }
     </style>
 </head>
-<body class="bg-judol text-white font-sans min-h-screen">
+<body>
 
-    <div class="flex flex-col lg:flex-row min-h-screen">
-        <!-- Sidebar -->
-        <aside class="w-full lg:w-64 bg-black border-r border-zinc-800 p-6 flex flex-col">
-            <h1 class="text-2xl font-black italic text-yellow-500 mb-8">SLOT <span class="text-white">EDUKASI</span></h1>
-            <nav class="space-y-2 flex-1">
-                <p class="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-4">Menu Navigasi</p>
-                <!-- Menghubungkan ke Dashboard Utama -->
-                <a href="member_dashboard.html" class="flex items-center gap-3 p-3 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 transition">
-                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard
-                </a>
-                <!-- Menghubungkan ke Halaman Materi -->
-                <a href="materi.html" class="flex items-center gap-3 p-3 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 transition">
-                    <i data-lucide="book-open" class="w-5 h-5"></i> Materi Edukasi
-                </a>
-                <!-- Menghubungkan ke Halaman Kuis -->
-                <a href="kuis.html" class="flex items-center gap-3 p-3 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 transition">
-                    <i data-lucide="award" class="w-5 h-5"></i> Kuis Interaktif
-                </a>
-                <!-- Menghubungkan ke Halaman Game Simulasi -->
-                <a href="game.html" class="flex items-center gap-3 p-3 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 transition">
-                    <i data-lucide="gamepad-2" class="w-5 h-5"></i> Simulasi Rungkad
-                </a>
-                <!-- Halaman Aktif: Konselor AI -->
-                <a href="chat.html" class="flex items-center gap-3 p-3 rounded-lg bg-zinc-900 text-yellow-500 border-l-4 border-yellow-500 transition">
-                    <i data-lucide="message-circle" class="w-5 h-5"></i> Konselor AI
-                </a>
-            </nav>
-            <div class="mt-auto p-4 bg-zinc-900/50 rounded-xl border border-zinc-800">
-                <p class="text-[10px] font-bold text-zinc-500 uppercase mb-2">Status AI</p>
-                <div class="flex items-center gap-2">
-                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    <span class="text-xs font-bold">Online & Siap Membantu</span>
+    <header class="p-5 flex items-center justify-between bg-black/40 backdrop-blur-md border-b border-white/5 z-10">
+        <div class="flex items-center gap-4">
+            <button onclick="window.history.back()" class="w-10 h-10 flex items-center justify-center bg-zinc-900 rounded-full hover:bg-zinc-800 transition">
+                <i data-lucide="chevron-left" class="w-6 h-6"></i>
+            </button>
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center"><i data-lucide="shield-check" class="w-6 h-6"></i></div>
+                <div>
+                    <h1 class="text-sm font-black tracking-tight uppercase">Bang Anti</h1>
+                    <span class="text-[10px] text-zinc-500 font-bold uppercase">Mode Aman & Privat</span>
                 </div>
             </div>
-        </aside>
+        </div>
+    </header>
 
-        <!-- Chat Area -->
-        <main class="flex-1 p-4 lg:p-8 flex flex-col">
-            <div class="max-w-4xl w-full mx-auto flex flex-col h-full">
-                
-                <!-- Header Chat -->
-                <div class="mb-6 flex items-center justify-between">
-                    <div>
-                        <h2 class="text-2xl font-black italic tracking-tighter">BANG <span class="text-yellow-500">KONSELOR</span> AI</h2>
-                        <p class="text-xs text-zinc-500 uppercase tracking-widest font-bold">Privasi Terjamin • Tanpa Judgement</p>
-                    </div>
-                    <button onclick="clearChat()" class="text-zinc-600 hover:text-red-500 transition">
-                        <i data-lucide="trash-2" class="w-5 h-5"></i>
-                    </button>
-                </div>
-
-                <!-- Chat Box -->
-                <div class="flex-1 chat-container rounded-3xl gold-border overflow-hidden flex flex-col mb-4">
-                    <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4">
-                        <!-- Welcome Message -->
-                        <div class="flex gap-4">
-                            <div class="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center shrink-0">
-                                <i data-lucide="bot" class="w-5 h-5 text-black"></i>
-                            </div>
-                            <div class="message-bubble-ai p-4 rounded-2xl rounded-tl-none max-w-[80%]">
-                                <p class="text-sm leading-relaxed">Halo kawan! Saya adalah <strong>Bang Konselor</strong>. Kamu bisa tanya apa saja seputar bahaya judi online, cara berhenti, atau sekadar curhat tentang masalah finansial yang kamu alami. Jangan khawatir, identitasmu tetap anonim. Apa yang bisa saya bantu hari ini?</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Typing Indicator -->
-                    <div id="typing-indicator" class="hidden px-6 py-2">
-                        <div class="flex gap-2">
-                            <span class="typing-dot"></span>
-                            <span class="typing-dot"></span>
-                            <span class="typing-dot"></span>
-                        </div>
-                    </div>
-
-                    <!-- Input Area -->
-                    <div class="p-4 bg-black/50 border-t border-zinc-800">
-                        <form onsubmit="sendMessage(event)" class="flex gap-3">
-                            <input type="text" id="user-input" placeholder="Tulis pesan kamu di sini..." 
-                                class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 outline-none focus:border-yellow-500 transition text-sm">
-                            <button type="submit" class="bg-yellow-500 hover:bg-yellow-600 text-black p-3 rounded-xl transition">
-                                <i data-lucide="send" class="w-5 h-5"></i>
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Quick Buttons -->
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="quickAsk('Bagaimana cara berhenti judi?')" class="text-[10px] font-bold px-3 py-2 rounded-full border border-zinc-800 hover:border-yellow-500 transition text-zinc-500 hover:text-white">#CaraBerhenti</button>
-                    <button onclick="quickAsk('Kenapa judi itu haram & dilarang?')" class="text-[10px] font-bold px-3 py-2 rounded-full border border-zinc-800 hover:border-yellow-500 transition text-zinc-500 hover:text-white">#HukumJudi</button>
-                    <button onclick="quickAsk('Data saya disebar oleh pinjol/situs judi, harus apa?')" class="text-[10px] font-bold px-3 py-2 rounded-full border border-zinc-800 hover:border-yellow-500 transition text-zinc-500 hover:text-white">#PrivasiData</button>
-                </div>
-
+    <main id="chat-box" class="chat-container p-5 space-y-6">
+        <div class="flex justify-start">
+            <div class="message-ai p-5 rounded-2xl rounded-tl-none max-w-[85%]">
+                <p class="text-sm leading-relaxed text-zinc-200">Halo! Sekarang koneksi kita sudah aman lewat server Vercel. Mau curhat apa hari ini?</p>
             </div>
-        </main>
-    </div>
+        </div>
+    </main>
+
+    <footer class="input-glass p-4 md:p-6">
+        <div class="max-w-4xl mx-auto flex items-end gap-3">
+            <textarea id="user-input" rows="1" placeholder="Tulis pesan..." class="w-full bg-zinc-900 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:outline-none focus:border-red-600 transition-all resize-none"></textarea>
+            <button onclick="sendMessage()" id="send-btn" class="w-14 h-14 bg-red-600 hover:bg-red-500 text-white rounded-2xl flex items-center justify-center active:scale-95 transition">
+                <i data-lucide="send" class="w-6 h-6"></i>
+            </button>
+        </div>
+    </footer>
 
     <script>
-        const apiKey = ""; // API Key otomatis ditangani lingkungan
-        const chatMessages = document.getElementById('chat-messages');
-        const typingIndicator = document.getElementById('typing-indicator');
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
 
-        // Exponential backoff retry for API calls
-        async function fetchWithRetry(url, options, retries = 5, backoff = 1000) {
-            try {
-                const response = await fetch(url, options);
-                if (!response.ok) throw new Error('API Error');
-                return await response.json();
-            } catch (err) {
-                if (retries > 0) {
-                    await new Promise(resolve => setTimeout(resolve, backoff));
-                    return fetchWithRetry(url, options, retries - 1, backoff * 2);
-                }
-                throw err;
-            }
-        }
+        const systemPrompt = "Nama lo Bang Anti. Abang-abangan bijak, empati, pake bahasa gaul tapi sopan. Pakar psikologi adiksi dan hukum Indonesia. Bongkar kebohongan judi online.";
 
-        async function sendMessage(event) {
-            if(event) event.preventDefault();
-            const input = document.getElementById('user-input');
-            const message = input.value.trim();
-            
-            if(!message) return;
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
 
-            // Add user message to UI
             addMessage(message, 'user');
-            input.value = '';
-            
-            // Show typing
-            typingIndicator.classList.remove('hidden');
-            chatMessages.scrollTo(0, chatMessages.scrollHeight);
-
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            const options = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: message }] }],
-                    systemInstruction: {
-                        parts: [{ text: "Kamu adalah 'Bang Konselor', asisten AI untuk platform SLOT EDUKASI 88. Tugasmu adalah mengedukasi siswa SMK tentang bahaya judi online. Gunakan bahasa yang akrab, santai namun tetap bijak dan tegas bahwa judi adalah penipuan. Jangan pernah mendukung perjudian. Berikan tips praktis untuk berhenti, kelola uang, dan lindungi privasi data. Jawab dengan gaya bahasa anak muda Indonesia yang sopan." }]
-                    }
-                })
-            };
+            userInput.value = '';
+            const loadingId = 'load-' + Date.now();
+            showLoading(loadingId);
 
             try {
-                const data = await fetchWithRetry(url, options);
-                const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf, Bang Konselor sedang sibuk. Coba lagi nanti ya!";
-                
-                typingIndicator.classList.add('hidden');
-                addMessage(aiResponse, 'ai');
+                // MEMANGGIL API INTERNAL VERCEL (AMAN)
+                const response = await fetch("/api/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        messages: [
+                            { role: "system", content: systemPrompt },
+                            { role: "user", content: message }
+                        ]
+                    })
+                });
+
+                const data = await response.json();
+                hideLoading(loadingId);
+                addMessage(data.choices[0].message.content, 'ai');
+
             } catch (error) {
-                console.error(error);
-                typingIndicator.classList.add('hidden');
-                addMessage("Waduh, koneksi ke Bang Konselor terputus setelah beberapa percobaan. Pastikan internetmu aktif.", 'ai');
+                hideLoading(loadingId);
+                addMessage("Yah, ada gangguan teknis nih. Coba lagi ya!", 'ai');
             }
         }
 
         function addMessage(text, sender) {
             const div = document.createElement('div');
-            div.className = `flex gap-4 ${sender === 'user' ? 'justify-end' : ''}`;
-            
-            const icon = sender === 'ai' 
-                ? `<div class="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center shrink-0"><i data-lucide="bot" class="w-5 h-5 text-black"></i></div>` 
-                : '';
-            
-            const bubbleClass = sender === 'ai' ? 'message-bubble-ai rounded-tl-none' : 'message-bubble-user rounded-tr-none';
-            
-            div.innerHTML = `
-                ${icon}
-                <div class="${bubbleClass} p-4 rounded-2xl max-w-[80%] text-sm leading-relaxed">
-                    ${text.replace(/\n/g, '<br>')}
-                </div>
-            `;
-            
-            chatMessages.appendChild(div);
-            lucide.createIcons();
-            chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+            div.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+            div.innerHTML = `<div class="${sender === 'user' ? 'message-user' : 'message-ai'} p-4 rounded-2xl max-w-[85%] text-sm">${text.replace(/\n/g, '<br>')}</div>`;
+            chatBox.appendChild(div);
+            chatBox.scrollTo({ top: chatBox.scrollHeight, behavior: 'smooth' });
         }
 
-        function quickAsk(text) {
-            document.getElementById('user-input').value = text;
-            sendMessage();
+        function showLoading(id) {
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = "flex justify-start";
+            div.innerHTML = `<div class="message-ai p-4 rounded-2xl animate-pulse text-xs text-zinc-500 italic">Bang Anti lagi mikir...</div>`;
+            chatBox.appendChild(div);
         }
 
-        function clearChat() {
-            chatMessages.innerHTML = '';
-            addMessage("Chat dibersihkan. Apa ada hal lain yang ingin kamu tanyakan?", 'ai');
-        }
-
+        function hideLoading(id) { document.getElementById(id)?.remove(); }
         lucide.createIcons();
     </script>
 </body>
